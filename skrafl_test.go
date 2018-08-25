@@ -21,7 +21,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package skrafl
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestDawg(t *testing.T) {
 	positiveCases := []string{
@@ -31,13 +33,68 @@ func TestDawg(t *testing.T) {
 		"blex", "fauð", "á", "é", "this",
 	}
 	for _, word := range positiveCases {
-		if !dawg.Find(word) {
+		if !WordBase.Find(word) {
 			t.Errorf("Did not find word '%v' that should be in the DAWG", word)
 		}
 	}
 	for _, word := range negativeCases {
-		if dawg.Find(word) {
+		if WordBase.Find(word) {
 			t.Errorf("Found word '%v' that should not be in the DAWG", word)
+		}
+	}
+	compareResults := func(a, b []string) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i, s := range a {
+			if s != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+	results := WordBase.Permute("stálins", RackSize)
+	if !compareResults(results, []string{"látsins", "tálsins"}) {
+		t.Errorf("Permute() returns incorrect result: %v", results)
+	}
+	results = WordBase.Permute("böl?nna", RackSize)
+	if !compareResults(results, []string{"bannböl", "bannlög", "bölanna", "böltann", "lögbann"}) {
+		t.Errorf("Permute() returns incorrect result: %v", results)
+	}
+}
+
+func BenchmarkDawg(b *testing.B) {
+	// Define the permuter goroutine
+	permuter := func(word string, ch chan int) {
+		cnt := 0
+		sumLength := 0
+		for _, w := range WordBase.Permute(word, RackSize) {
+			cnt++
+			sumLength += len(w) // Use w
+		}
+		// Send the results back on this permuter's channel
+		ch <- cnt
+		ch <- sumLength
+	}
+	// We will permute four racks in each benchmark loop
+	// iteration, using four parallel goroutines
+	racks := []string{"?an?ins", "un?ansk", "gle?ina", "von??ði"}
+	// Make the channels, one for each rack
+	ch := make([]chan int, len(racks))
+	for j := 0; j < len(ch); j++ {
+		ch[j] = make(chan int)
+	}
+	// Now run the benchmark proper
+	for i := 0; i < b.N; i++ {
+		// Kick off the parallel permuters
+		for j, rack := range racks {
+			go permuter(rack, ch[j])
+		}
+		// Collect the results as they come back
+		var cnt, sumLength int
+		for _, c := range ch {
+			cnt += <-c
+			sumLength += <-c
 		}
 	}
 }

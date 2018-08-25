@@ -1,6 +1,21 @@
 # GoSkrafl
 A fast SCRABBLE(tm) engine written in Go
 
+### About
+
+This project aims to create a very fast SCRABBLE(tm) engine. It will
+support any language (using Unicode throughout) and any tile bag configuration.
+It includes the whole game lifecycle, board, rack and bag management,
+full move validation, scoring, word and cross-word checks, and robot players.
+
+The same author has already written
+a [SCRABBLE(tm) engine in Python](https://github.com/vthorsteinsson/Netskrafl)
+which is up-and-running and thoroughly tested.
+
+### Status
+
+This software is under development and has not yet reached Alpha status.
+
 ### Original Author
 
 _Vilhjálmur Þorsteinsson, Reykjavík, Iceland._
