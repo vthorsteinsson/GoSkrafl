@@ -3,7 +3,7 @@ A fast SCRABBLE(tm) engine written in Go
 
 ### Original Author
 
-Vilhjálmur Þorsteinsson, Reykjavík, Iceland.
+_Vilhjálmur Þorsteinsson, Reykjavík, Iceland._
 
 Contact me via GitHub for queries or information regarding GoSkrafl.
 
@@ -13,7 +13,7 @@ conditions of the GNU GPL v3 license (see below).
 
 ### License
 
-*GoSkrafl - an fast SCRABBLE(tm) engine written in Go*
+*GoSkrafl - a fast SCRABBLE(tm) engine written in Go*
 
 *Copyright (C) 2018 Vilhjálmur Þorsteinsson*
 
