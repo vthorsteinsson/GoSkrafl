@@ -31,7 +31,15 @@ import (
 	"sync"
 )
 
-// Dawg encapsulates the compressed DAWG as a byte buffer
+// Dawg encapsulates the externally generated,
+// compressed Directed Acyclic Word Graph as a byte buffer.
+// Within the DAWG, letters from the alphabet are represented
+// as indices into the ALPHABET string (below).
+// The Coding map translates these indices to the actual
+// letters.
+// The iterNodeCache map is built on the fly, as
+// each Dawg node is traversed for the first time. In practice,
+// many nodes will never be traversed.
 type Dawg struct {
 	b      []byte
 	coding Coding
@@ -89,7 +97,7 @@ func (fn *FindNavigator) PushEdge(chr rune) bool {
 	return fn.word[fn.index] == chr
 }
 
-// PopEdge return false if there is no need to visit other edges
+// PopEdge returns false if there is no need to visit other edges
 // after this one has been traversed
 func (fn *FindNavigator) PopEdge() bool {
 	// There can only be one correct outgoing edge for the
@@ -157,7 +165,7 @@ func (pn *PermutationNavigator) PushEdge(chr rune) bool {
 	return false
 }
 
-// PopEdge return false if there is no need to visit other edges
+// PopEdge returns false if there is no need to visit other edges
 // after this one has been traversed
 func (pn *PermutationNavigator) PopEdge() bool {
 	last := len(pn.stack) - 1
@@ -247,7 +255,7 @@ func (mn *MatchNavigator) PushEdge(chr rune) bool {
 	return true
 }
 
-// PopEdge return false if there is no need to visit other edges
+// PopEdge returns false if there is no need to visit other edges
 // after this one has been traversed
 func (mn *MatchNavigator) PopEdge() bool {
 	last := len(mn.stack) - 1
