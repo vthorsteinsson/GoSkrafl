@@ -69,6 +69,67 @@ type Navigator interface {
 	Done()
 }
 
+// FindNavigator stores the state for a plain word search in the Dawg,
+// and implements the Navigator interface
+type FindNavigator struct {
+	word  []rune
+	index int
+	found bool
+}
+
+// Init initializes a FindNavigator with the word to search for
+func (fn *FindNavigator) Init(word string) {
+	// Convert the word to a list of runes
+	fn.word = []rune(word)
+}
+
+// PushEdge determines whether the navigation should proceed into
+// an edge having chr as its first letter
+func (fn *FindNavigator) PushEdge(chr rune) bool {
+	return fn.word[fn.index] == chr
+}
+
+// PopEdge return false if there is no need to visit other edges
+// after this one has been traversed
+func (fn *FindNavigator) PopEdge() bool {
+	// There can only be one correct outgoing edge for the
+	// Find function, so we return false to prevent other edges
+	// from being tried
+	return false
+}
+
+// Done is called when the navigation is complete
+func (fn *FindNavigator) Done() {
+}
+
+// IsAccepting returns false if the navigator should not expect more
+// characters
+func (fn *FindNavigator) IsAccepting() bool {
+	return fn.index < len(fn.word)
+}
+
+// Accepts returns true if the navigator should accept and 'eat' the
+// given character
+func (fn *FindNavigator) Accepts(chr rune) bool {
+	if chr != fn.word[fn.index] {
+		// Not a correct next character in the word
+		return false
+	}
+	// This is a correct character: advance our index
+	fn.index++
+	return true
+}
+
+// Accept is called to inform the navigator of a match and
+// whether it is a final word
+func (fn *FindNavigator) Accept(matched string, final bool) {
+	if final && fn.index == len(fn.word) {
+		// This is a whole word (final=true) and matches our
+		// length, so that's it
+		fn.found = true
+	}
+}
+
 // PermutationNavigator stores the state for a plain word search in the Dawg,
 // and implements the Navigator interface
 type PermutationNavigator struct {
@@ -147,64 +208,87 @@ func (pn *PermutationNavigator) Accept(matched string, final bool) {
 	}
 }
 
-// FindNavigator stores the state for a plain word search in the Dawg,
-// and implements the Navigator interface
-type FindNavigator struct {
-	word  []rune
-	index int
-	found bool
+// MatchNavigator stores the state for a pattern matching
+// navigation of a Dawg, and implements the Navigator interface
+type MatchNavigator struct {
+	pattern    []rune
+	lenP       int
+	index      int
+	chMatch    rune
+	isWildcard bool
+	stack      []matchTuple
+	results    []string
 }
 
-// Init initializes a FindNavigator with the word to search for
-func (fn *FindNavigator) Init(word string) {
+type matchTuple struct {
+	index      int
+	chMatch    rune
+	isWildcard bool
+}
+
+// Init initializes a MatchNavigator with the word to search for
+func (mn *MatchNavigator) Init(pattern string) {
 	// Convert the word to a list of runes
-	fn.word = []rune(word)
+	mn.pattern = []rune(pattern)
+	mn.lenP = len(mn.pattern)
+	mn.chMatch = mn.pattern[0]
+	mn.isWildcard = mn.chMatch == '?'
+	mn.stack = make([]matchTuple, 0, RackSize)
+	mn.results = make([]string, 0)
 }
 
 // PushEdge determines whether the navigation should proceed into
 // an edge having chr as its first letter
-func (fn *FindNavigator) PushEdge(chr rune) bool {
-	return fn.word[fn.index] == chr
+func (mn *MatchNavigator) PushEdge(chr rune) bool {
+	if chr != mn.chMatch && !mn.isWildcard {
+		return false
+	}
+	mn.stack = append(mn.stack, matchTuple{mn.index, mn.chMatch, mn.isWildcard})
+	return true
 }
 
 // PopEdge return false if there is no need to visit other edges
 // after this one has been traversed
-func (fn *FindNavigator) PopEdge() bool {
-	// There can only be one correct outgoing edge for the
-	// Find function, so we return false to prevent other edges
-	// from being tried
-	return false
+func (mn *MatchNavigator) PopEdge() bool {
+	last := len(mn.stack) - 1
+	mt := &mn.stack[last]
+	mn.index, mn.chMatch, mn.isWildcard = mt.index, mt.chMatch, mt.isWildcard
+	mn.stack = mn.stack[0:last]
+	return mn.isWildcard
 }
 
 // Done is called when the navigation is complete
-func (fn *FindNavigator) Done() {
+func (mn *MatchNavigator) Done() {
 }
 
 // IsAccepting returns false if the navigator should not expect more
 // characters
-func (fn *FindNavigator) IsAccepting() bool {
-	return fn.index < len(fn.word)
+func (mn *MatchNavigator) IsAccepting() bool {
+	return mn.index < mn.lenP
 }
 
 // Accepts returns true if the navigator should accept and 'eat' the
 // given character
-func (fn *FindNavigator) Accepts(chr rune) bool {
-	if chr != fn.word[fn.index] {
+func (mn *MatchNavigator) Accepts(chr rune) bool {
+	if chr != mn.chMatch && !mn.isWildcard {
 		// Not a correct next character in the word
 		return false
 	}
 	// This is a correct character: advance our index
-	fn.index++
+	mn.index++
+	if mn.index < mn.lenP {
+		mn.chMatch = mn.pattern[mn.index]
+		mn.isWildcard = mn.chMatch == '?'
+	}
 	return true
 }
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (fn *FindNavigator) Accept(matched string, final bool) {
-	if final && fn.index == len(fn.word) {
-		// This is a whole word (final=true) and matches our
-		// length, so that's it
-		fn.found = true
+func (mn *MatchNavigator) Accept(matched string, final bool) {
+	if final && mn.index == mn.lenP {
+		// Entire pattern match
+		mn.results = append(mn.results, matched)
 	}
 }
 
@@ -375,6 +459,16 @@ func (dawg *Dawg) Permute(rack string, minLen int) []string {
 	var nav Navigation
 	nav.Go(dawg, &pn)
 	return pn.results
+}
+
+// Match returns all words in the Dawg that match a
+// given pattern, which can include '?' wildcards/blanks.
+func (dawg *Dawg) Match(pattern string) []string {
+	var mn MatchNavigator
+	mn.Init(pattern)
+	var nav Navigation
+	nav.Go(dawg, &mn)
+	return mn.results
 }
 
 // makeDawg initializes a Dawg instance and loads its contents

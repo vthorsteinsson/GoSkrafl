@@ -4,9 +4,14 @@ A fast SCRABBLE(tm) engine written in Go
 ### About
 
 This project aims to create a very fast SCRABBLE(tm) engine. It will
-support any language (using Unicode throughout) and any tile bag configuration.
-It includes the whole game lifecycle, board, rack and bag management,
-full move validation, scoring, word and cross-word checks, and robot players.
+support any language (using Unicode and UTF-8 throughout) as well as
+any tile bag configuration. It supports the whole game lifecycle, board,
+rack and bag management, full move validation, scoring, word and
+cross-word checks, and robot players.
+
+The robot players use Go's goroutines to line up the highest-scoring
+moves in parallel, employing all available processor cores for true
+concurrency.
 
 The same author has already written
 a [SCRABBLE(tm) engine in Python](https://github.com/vthorsteinsson/Netskrafl)
@@ -47,5 +52,5 @@ The full text of the GNU General Public License is available here:
 
 ### Trademarks
 
-SCRABBLE is a registered trademark. This software or its author are in no way
-affiliated with or endorsed by the owners or licensees of the SCRABBLE trademark.
+*SCRABBLE is a registered trademark. This software or its author are in no way*
+*affiliated with or endorsed by the owners or licensees of the SCRABBLE trademark.*

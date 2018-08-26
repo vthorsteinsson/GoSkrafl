@@ -58,8 +58,14 @@ func TestDawg(t *testing.T) {
 		t.Errorf("Permute() returns incorrect result: %v", results)
 	}
 	results = WordBase.Permute("böl?nna", RackSize)
-	if !compareResults(results, []string{"bannböl", "bannlög", "bölanna", "böltann", "lögbann"}) {
+	if !compareResults(results, []string{
+		"bannböl", "bannlög", "bölanna", "böltann", "lögbann"}) {
 		t.Errorf("Permute() returns incorrect result: %v", results)
+	}
+	results = WordBase.Match("fa?gin?")
+	if !compareResults(results, []string{
+		"fagginn", "fanginn", "fangins", "fanginu", "farginu"}) {
+		t.Errorf("Match() returns incorrect result: %v", results)
 	}
 }
 
