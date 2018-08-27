@@ -27,6 +27,7 @@ import (
 
 func TestDawg(t *testing.T) {
 	// Test finding words in the DAWG
+	wordBase := IcelandicDictionary
 	positiveCases := []string{
 		"góðan", "daginn", "hér", "er", "prófun", "orðum", "ti", "do", "álínis",
 	}
@@ -34,12 +35,12 @@ func TestDawg(t *testing.T) {
 		"blex", "fauð", "á", "é", "this",
 	}
 	for _, word := range positiveCases {
-		if !WordBase.Find(word) {
+		if !wordBase.Find(word) {
 			t.Errorf("Did not find word '%v' that should be in the DAWG", word)
 		}
 	}
 	for _, word := range negativeCases {
-		if WordBase.Find(word) {
+		if wordBase.Find(word) {
 			t.Errorf("Found word '%v' that should not be in the DAWG", word)
 		}
 	}
@@ -55,17 +56,17 @@ func TestDawg(t *testing.T) {
 		return true
 	}
 	// Test word permutations
-	results := WordBase.Permute("stálins", RackSize)
+	results := wordBase.Permute("stálins", RackSize)
 	if !compareResults(results, []string{"látsins", "tálsins"}) {
 		t.Errorf("Permute() returns incorrect result: %v", results)
 	}
-	results = WordBase.Permute("böl?nna", RackSize)
+	results = wordBase.Permute("böl?nna", RackSize)
 	if !compareResults(results, []string{
 		"bannböl", "bannlög", "bölanna", "böltann", "lögbann"}) {
 		t.Errorf("Permute() returns incorrect result: %v", results)
 	}
 	// Test pattern matching
-	results = WordBase.Match("fa?gin?")
+	results = wordBase.Match("fa?gin?")
 	if !compareResults(results, []string{
 		"fagginn", "fanginn", "fangins", "fanginu", "farginu"}) {
 		t.Errorf("Match() returns incorrect result: %v", results)
@@ -74,10 +75,11 @@ func TestDawg(t *testing.T) {
 
 func BenchmarkDawg(b *testing.B) {
 	// Define the permuter goroutine
+	wordBase := IcelandicDictionary
 	permuter := func(word string, ch chan int) {
 		cnt := 0
 		sumLength := 0
-		for _, w := range WordBase.Permute(word, RackSize) {
+		for _, w := range wordBase.Permute(word, RackSize) {
 			cnt++
 			sumLength += len(w) // Use w
 		}
@@ -295,6 +297,9 @@ func TestTileMove(t *testing.T) {
 	if tileMove.Horizontal {
 		t.Errorf("Move is incorrectly identified as being horizontal")
 	}
+	// Find left parts
+	leftParts := FindLeftParts(game.Dawg, game.Racks[game.PlayerToMove()].AsString())
+	_ = leftParts
 	// Stringify the game (no test but at least this enhances coverage)
 	_ = game.String()
 }

@@ -39,12 +39,14 @@ type Game struct {
 	Bag         *Bag
 	MoveList    []Move
 	NumTiles    int
+	// The DAWG dictionary to use in the game
+	Dawg *Dawg
 }
 
 // Init initializes a new game with a fresh bag copied
 // from the given tile set, and draws the player racks
 // from the bag
-func (game *Game) Init(tileSet *TileSet) {
+func (game *Game) Init(tileSet *TileSet, dawg *Dawg) {
 	game.Board.Init()
 	game.Racks[0].Init()
 	game.Racks[1].Init()
@@ -52,13 +54,14 @@ func (game *Game) Init(tileSet *TileSet) {
 	game.Racks[0].Fill(game.Bag)
 	game.Racks[1].Fill(game.Bag)
 	game.MoveList = make([]Move, 0, 30) // Initial capacity for 30 moves
+	game.Dawg = dawg
 }
 
 // NewIcelandicGame instantiates a new Game with the Icelandic TileSet
 // and returns a reference to it
 func NewIcelandicGame() *Game {
 	game := &Game{}
-	game.Init(NewIcelandicTileSet)
+	game.Init(NewIcelandicTileSet, IcelandicDictionary)
 	return game
 }
 

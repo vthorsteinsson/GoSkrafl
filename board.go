@@ -314,13 +314,25 @@ func (rack *Rack) Init() {
 	}
 }
 
-// String returns a string representation of a Rack
+// String returns a printable string representation of a Rack
 func (rack *Rack) String() string {
 	var sb strings.Builder
 	for i := 0; i < RackSize; i++ {
 		sb.WriteString(fmt.Sprintf("%v ", &rack.Slots[i]))
 	}
 	return sb.String()
+}
+
+// AsString returns the tiles in the Rack as a contiguous string
+func (rack *Rack) AsString() string {
+	runes := make([]rune, 0, RackSize)
+	for i := 0; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		if sq.Tile != nil {
+			runes = append(runes, sq.Tile.Letter)
+		}
+	}
+	return string(runes)
 }
 
 // HasTile returns true if the given Tile is in the Rack

@@ -45,7 +45,7 @@ type Dawg struct {
 	coding Coding
 	// mux protects the iterNodeCache
 	mux           sync.Mutex
-	iterNodeCache map[uint32][]iterPair
+	iterNodeCache map[uint32][]navState
 }
 
 // ALPHABET contains the letters as they are indexed
@@ -66,6 +66,11 @@ type Prefix []rune
 type Navigation struct {
 	dawg      *Dawg
 	navigator Navigator
+	// isResumable is set to true if we should call navigator.Accept()
+	// with the full state of the navigation in the last parameter.
+	// If the navigation doesn't require this, leave isResumable set
+	// to false for best performance.
+	isResumable bool
 }
 
 // Navigator is an interface that describes behaviors that control the
@@ -73,7 +78,7 @@ type Navigation struct {
 type Navigator interface {
 	IsAccepting() bool
 	Accepts(rune) bool
-	Accept(matched string, final bool)
+	Accept(matched string, final bool, state *navState)
 	PushEdge(rune) bool
 	PopEdge() bool
 	Done()
@@ -82,15 +87,17 @@ type Navigator interface {
 // FindNavigator stores the state for a plain word search in the Dawg,
 // and implements the Navigator interface
 type FindNavigator struct {
-	word  []rune
-	index int
-	found bool
+	word    []rune
+	lenWord int
+	index   int
+	found   bool
 }
 
 // Init initializes a FindNavigator with the word to search for
 func (fn *FindNavigator) Init(word string) {
 	// Convert the word to a list of runes
 	fn.word = []rune(word)
+	fn.lenWord = len(fn.word) // Be careful! Not len(word)
 }
 
 // PushEdge determines whether the navigation should proceed into
@@ -116,7 +123,7 @@ func (fn *FindNavigator) Done() {
 // IsAccepting returns false if the navigator should not expect more
 // characters
 func (fn *FindNavigator) IsAccepting() bool {
-	return fn.index < len(fn.word)
+	return fn.index < fn.lenWord
 }
 
 // Accepts returns true if the navigator should accept and 'eat' the
@@ -131,8 +138,8 @@ func (fn *FindNavigator) Accepts(chr rune) bool {
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (fn *FindNavigator) Accept(matched string, final bool) {
-	if final && fn.index == len(fn.word) {
+func (fn *FindNavigator) Accept(matched string, final bool, state *navState) {
+	if final && fn.index == fn.lenWord {
 		// This is a whole word (final=true) and matches our
 		// length, so that's it
 		fn.found = true
@@ -209,7 +216,7 @@ func (pn *PermutationNavigator) Accepts(chr rune) bool {
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (pn *PermutationNavigator) Accept(matched string, final bool) {
+func (pn *PermutationNavigator) Accept(matched string, final bool, state *navState) {
 	if final && len([]rune(matched)) >= pn.minLen {
 		// This is a full word (final=true) and the number of letters
 		// is above the minimum limit: add it to the results
@@ -294,7 +301,7 @@ func (mn *MatchNavigator) Accepts(chr rune) bool {
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (mn *MatchNavigator) Accept(matched string, final bool) {
+func (mn *MatchNavigator) Accept(matched string, final bool, state *navState) {
 	if final && mn.index == mn.lenP {
 		// Entire pattern match
 		mn.results = append(mn.results, matched)
@@ -315,8 +322,9 @@ func (nav *Navigation) Go(dawg *Dawg, navigator Navigator) {
 	navigator.Done()
 }
 
-// iterPair holds a single iteration result
-type iterPair struct {
+// navState holds a navigation state, i.e. an edge where a prefix
+// leads to a nextNode
+type navState struct {
 	prefix   Prefix
 	nextNode uint32
 }
@@ -324,7 +332,7 @@ type iterPair struct {
 // iterNode is an internal function that returns a list of
 // prefixes and associated next node offsets. We calculate
 // this list only once, and then cache it in the Dawg instance.
-func (dawg *Dawg) iterNode(offset uint32) []iterPair {
+func (dawg *Dawg) iterNode(offset uint32) []navState {
 	// Start by looking for this offset in the cached map.
 	// We must lock the shared iterNodeCache object since
 	// we're reading it and possibly updating it.
@@ -343,30 +351,27 @@ func (dawg *Dawg) iterNode(offset uint32) []iterPair {
 	coding := &dawg.coding
 	numEdges := int(b[offset] & 0x7f)
 	offset++
-	result := make([]iterPair, numEdges)
+	result := make([]navState, numEdges)
 	for i := 0; i < numEdges; i++ {
 		lenByte := b[offset]
-		var prefix Prefix
-		var nextNode uint32
+		state := &result[i]
 		offset++
 		if lenByte&0x40 != 0 {
-			prefix = make(Prefix, 0, 2)
-			prefix = append(prefix, (*coding)[lenByte&0x3f]...)
+			state.prefix = make(Prefix, 0, 2)
+			state.prefix = append(state.prefix, (*coding)[lenByte&0x3f]...)
 		} else {
 			lenByte &= 0x3f
-			prefix = make(Prefix, 0, lenByte+1)
+			state.prefix = make(Prefix, 0, lenByte+1)
 			for j := 0; j < int(lenByte); j++ {
-				prefix = append(prefix, (*coding)[b[int(offset)+j]]...)
+				state.prefix = append(state.prefix, (*coding)[b[int(offset)+j]]...)
 			}
 			offset += uint32(lenByte)
 		}
-		if b[offset-1]&0x80 != 0 {
-			nextNode = 0
-		} else {
-			nextNode = binary.LittleEndian.Uint32(b[offset : offset+4])
+		if b[offset-1]&0x80 == 0 {
+			// Not a final state
+			state.nextNode = binary.LittleEndian.Uint32(b[offset : offset+4])
 			offset += 4
 		}
-		result[i] = iterPair{prefix: prefix, nextNode: nextNode}
 	}
 	dawg.iterNodeCache[originalOffset] = result
 	return result
@@ -374,9 +379,11 @@ func (dawg *Dawg) iterNode(offset uint32) []iterPair {
 
 // FromNode continues a navigation from a node in the Dawg
 func (nav *Navigation) FromNode(offset uint32, matched string) {
-	for _, iter := range nav.dawg.iterNode(offset) {
-		if nav.navigator.PushEdge(iter.prefix[0]) {
-			nav.FromEdge(iter.prefix, iter.nextNode, matched)
+	iter := nav.dawg.iterNode(offset)
+	for i := 0; i < len(iter); i++ {
+		state := &iter[i]
+		if nav.navigator.PushEdge(state.prefix[0]) {
+			nav.FromEdge(state, matched)
 			if !nav.navigator.PopEdge() {
 				break
 			}
@@ -385,31 +392,37 @@ func (nav *Navigation) FromNode(offset uint32, matched string) {
 }
 
 // FromEdge continues a navigation from an edge in the Dawg
-func (nav *Navigation) FromEdge(prefix Prefix, nextNode uint32, matched string) {
-	lenP := len(prefix)
+func (nav *Navigation) FromEdge(state *navState, matched string) {
+	lenP := len(state.prefix)
 	j := 0
 	navigator := nav.navigator
 	for j < lenP && navigator.IsAccepting() {
-		if !navigator.Accepts(prefix[j]) {
+		if !navigator.Accepts(state.prefix[j]) {
 			return
 		}
-		matched += string(prefix[j])
+		matched += string(state.prefix[j])
 		j++
 		final := false
 		if j < lenP {
-			if prefix[j] == '|' {
+			if state.prefix[j] == '|' {
 				final = true
 				j++
 			}
 		} else {
-			if nextNode == 0 || nav.dawg.b[nextNode]&0x80 != 0 {
+			if state.nextNode == 0 || nav.dawg.b[state.nextNode]&0x80 != 0 {
 				final = true
 			}
 		}
-		navigator.Accept(matched, final)
+		if nav.isResumable {
+			// We want the full navigation state to be passed to navigator.Accept()
+			navigator.Accept(matched, final, &navState{prefix: state.prefix[j:], nextNode: state.nextNode})
+		} else {
+			// No need to pass the full state
+			navigator.Accept(matched, final, nil)
+		}
 	}
-	if j >= lenP && nextNode != 0 && navigator.IsAccepting() {
-		nav.FromNode(nextNode, matched)
+	if j >= lenP && state.nextNode != 0 && navigator.IsAccepting() {
+		nav.FromNode(state.nextNode, matched)
 	}
 }
 
@@ -445,7 +458,7 @@ func (dawg *Dawg) Init(filePath string) error {
 		i++
 	}
 	// Create the iteration node cache
-	dawg.iterNodeCache = make(map[uint32][]iterPair)
+	dawg.iterNodeCache = make(map[uint32][]navState)
 	return nil
 }
 
@@ -483,9 +496,9 @@ func (dawg *Dawg) Match(pattern string) []string {
 // makeDawg initializes a Dawg instance and loads its contents
 // from a binary file located in the same directory as the
 // skrafl module
-func makeDawg() *Dawg {
+func makeDawg(fileName string) *Dawg {
 	dawg := &Dawg{}
-	path := os.ExpandEnv("${GOPATH}/src/github.com/vthorsteinsson/GoSkrafl/ordalisti.bin.dawg")
+	path := os.ExpandEnv("${GOPATH}/src/github.com/vthorsteinsson/GoSkrafl/" + fileName)
 	path = filepath.FromSlash(path)
 	err := dawg.Init(path)
 	if err != nil {
@@ -494,5 +507,7 @@ func makeDawg() *Dawg {
 	return dawg
 }
 
-// WordBase is a singleton instance of the Dawg
-var WordBase = makeDawg()
+// IcelandicDictionary is a Dawg instance containing the Icelandic
+// Scrabble(tm) dictionary, as derived from the BÍN database
+// (Beygingarlýsing íslensks nútímamáls)
+var IcelandicDictionary = makeDawg("ordalisti.bin.dawg")
