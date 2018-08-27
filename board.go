@@ -323,18 +323,33 @@ func (rack *Rack) String() string {
 	return sb.String()
 }
 
+// HasTile returns true if the given Tile is in the Rack
+func (rack *Rack) HasTile(tile *Tile) bool {
+	if tile == nil {
+		return false
+	}
+	for i := 0; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		if sq.Tile == tile {
+			return true
+		}
+	}
+	return false
+}
+
 // RemoveTile removes a tile from a Rack
 func (rack *Rack) RemoveTile(tile *Tile) bool {
-	if tile != nil {
-		for i := 0; i < RackSize; i++ {
-			sq := &rack.Slots[i]
-			if sq.Tile == tile {
-				// Found the slot with the tile:
-				// remove it from the rack
-				sq.Tile = nil
-				rack.Letters[tile.Letter]--
-				return true
-			}
+	if tile == nil {
+		return false
+	}
+	for i := 0; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		if sq.Tile == tile {
+			// Found the slot with the tile:
+			// remove it from the rack
+			sq.Tile = nil
+			rack.Letters[tile.Letter]--
+			return true
 		}
 	}
 	// Tile was not found in the rack

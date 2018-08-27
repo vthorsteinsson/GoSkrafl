@@ -26,6 +26,7 @@ import (
 )
 
 func TestDawg(t *testing.T) {
+	// Test finding words in the DAWG
 	positiveCases := []string{
 		"góðan", "daginn", "hér", "er", "prófun", "orðum", "ti", "do", "álínis",
 	}
@@ -53,6 +54,7 @@ func TestDawg(t *testing.T) {
 		}
 		return true
 	}
+	// Test word permutations
 	results := WordBase.Permute("stálins", RackSize)
 	if !compareResults(results, []string{"látsins", "tálsins"}) {
 		t.Errorf("Permute() returns incorrect result: %v", results)
@@ -62,6 +64,7 @@ func TestDawg(t *testing.T) {
 		"bannböl", "bannlög", "bölanna", "böltann", "lögbann"}) {
 		t.Errorf("Permute() returns incorrect result: %v", results)
 	}
+	// Test pattern matching
 	results = WordBase.Match("fa?gin?")
 	if !compareResults(results, []string{
 		"fagginn", "fanginn", "fangins", "fanginu", "farginu"}) {
@@ -106,8 +109,7 @@ func BenchmarkDawg(b *testing.B) {
 }
 
 func TestTileMove(t *testing.T) {
-	var game Game
-	game.Init(NewTileSet)
+	game := NewIcelandicGame()
 	game.SetPlayerNames("Villi", "Gopher")
 	// Construct a move from the player 0 rack
 	move := game.Racks[0].Extract(4, 'x')
@@ -186,8 +188,7 @@ func TestTileMove(t *testing.T) {
 		return tile
 	}
 	tile := grabTile(1, 0)
-	tileMove := &TileMove{}
-	tileMove.Init(&game,
+	tileMove := NewTileMove(game,
 		Covers{
 			{10, 8}: tile,
 		},
@@ -197,8 +198,7 @@ func TestTileMove(t *testing.T) {
 	}
 	// Make a non-contiguous move
 	tile2 := grabTile(1, 1)
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{10, 8}: tile,
 			{12, 8}: tile2,
@@ -208,8 +208,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted noncontiguous move")
 	}
 	// Make a non-linear move
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{5, 6}: tile,
 			{6, 8}: tile2,
@@ -219,8 +218,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted nonlinear move")
 	}
 	// Cover an already occupied square
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{5, 6}: tile,
 			{5, 7}: tile2,
@@ -234,9 +232,12 @@ func TestTileMove(t *testing.T) {
 	if game.Apply(tileMove) {
 		t.Errorf("Accepted empty move")
 	}
+	tileMove = NewTileMove(game, Covers{})
+	if game.Apply(tileMove) {
+		t.Errorf("Accepted empty move")
+	}
 	// Cover a nonexistent square
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{-1, 6}: tile,
 			{0, 6}:  tile2,
@@ -246,8 +247,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted cover of nonexistent square")
 	}
 	// Cover a nonexistent square
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{BoardSize - 1, 6}: tile,
 			{BoardSize, 6}:     tile2,
@@ -257,42 +257,39 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted cover of nonexistent square")
 	}
 	// Horizontal move
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{7, 4}:  tile,
 			{7, 10}: tile2,
 		},
 	)
 	// t.Logf("%v\n", &game)
-	if !tileMove.IsValid(&game) {
+	if !tileMove.IsValid(game) {
 		t.Errorf("Move is incorrectly seen as not valid")
 	}
 	if !tileMove.Horizontal {
 		t.Errorf("Move is incorrectly identified as being vertical")
 	}
 	// Vertical move
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{7, 4}: tile,
 			{8, 4}: tile2,
 		},
 	)
-	if !tileMove.IsValid(&game) {
+	if !tileMove.IsValid(game) {
 		t.Errorf("Move is incorrectly seen as not valid")
 	}
 	if tileMove.Horizontal {
 		t.Errorf("Move is incorrectly identified as being horizontal")
 	}
 	// Single cover which creates a vertical move
-	tileMove = &TileMove{}
-	tileMove.Init(&game,
+	tileMove = NewTileMove(game,
 		Covers{
 			{8, 7}: tile,
 		},
 	)
-	if !tileMove.IsValid(&game) {
+	if !tileMove.IsValid(game) {
 		t.Errorf("Move is incorrectly seen as not valid")
 	}
 	if tileMove.Horizontal {

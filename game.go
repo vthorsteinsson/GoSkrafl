@@ -28,7 +28,9 @@ import (
 
 // Game is a container for an in-progress game between
 // two players, having a Board and two Racks, as well
-// as a Bag and a list of Moves made so far
+// as a Bag and a list of Moves made so far. We also keep
+// track of the number of Tiles that have been placed on
+// the Board.
 type Game struct {
 	PlayerNames [2]string
 	Scores      [2]int
@@ -50,6 +52,14 @@ func (game *Game) Init(tileSet *TileSet) {
 	game.Racks[0].Fill(game.Bag)
 	game.Racks[1].Fill(game.Bag)
 	game.MoveList = make([]Move, 0, 30) // Initial capacity for 30 moves
+}
+
+// NewIcelandicGame instantiates a new Game with the Icelandic TileSet
+// and returns a reference to it
+func NewIcelandicGame() *Game {
+	game := &Game{}
+	game.Init(NewIcelandicTileSet)
+	return game
 }
 
 // TileAt is a convenience function for returning the Tile at
@@ -110,8 +120,7 @@ func (game *Game) PlayerToMove() int {
 
 // MakePassMove appends a pass move to the Game's move list
 func (game *Game) MakePassMove() bool {
-	move := &PassMove{}
-	return game.Apply(move)
+	return game.Apply(NewPassMove())
 }
 
 // MakeTileMove creates a tile move and appends it to the Game's move list
@@ -120,6 +129,14 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 	if row < 0 || row >= BoardSize || col < 0 || col >= BoardSize ||
 		len(tiles) < 1 || len(tiles) > RackSize {
 		return false
+	}
+	// Check that the played tiles are actually in the player's rack
+	rack := &game.Racks[game.PlayerToMove()]
+	for _, tile := range tiles {
+		if !rack.HasTile(tile) {
+			// This tile isn't in the player's rack
+			return false
+		}
 	}
 	// A tile move must start at an empty square
 	if game.TileAt(row, col) != nil {
@@ -150,11 +167,8 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 		row += rowInc
 		col += colInc
 	}
-	// Construct the TileMove object
-	move := &TileMove{}
-	move.Init(game, covers)
-	// And apply it to the game
-	return game.Apply(move)
+	// Apply a fresh TileMove to the game
+	return game.Apply(NewTileMove(game, covers))
 }
 
 // Apply applies a move to the game, appends it to the

@@ -1,7 +1,7 @@
 // dawg.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
 // This file implements the Directed Acyclic Word Graph (DAWG)
-// which encodes the dictionary of valid words
+// which encodes the dictionary of valid words.
 
 /*
 
@@ -37,9 +37,9 @@ import (
 // as indices into the ALPHABET string (below).
 // The Coding map translates these indices to the actual
 // letters.
-// The iterNodeCache map is built on the fly, as
-// each Dawg node is traversed for the first time. In practice,
-// many nodes will never be traversed.
+// The iterNodeCache map is built on the fly, when
+// each Dawg node is traversed for the first time.
+// In practice, many nodes will never be traversed.
 type Dawg struct {
 	b      []byte
 	coding Coding
@@ -49,14 +49,16 @@ type Dawg struct {
 }
 
 // ALPHABET contains the letters as they are indexed
-// in the compressed binary DAWG
+// in the compressed binary DAWG.
+// TODO: move this to the DAWG file.
 const ALPHABET = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
 
 // Coding maps an encoded byte to a legal letter, eventually
 // suffixed with '|' to denote a final node in the Dawg
 type Coding map[byte]Prefix
 
-// A Prefix is an array of runes
+// A Prefix is an array of runes that prefixes an outgoing
+// edge in the Dawg
 type Prefix []rune
 
 // Navigation contains the state of a single navigation that is
@@ -94,6 +96,7 @@ func (fn *FindNavigator) Init(word string) {
 // PushEdge determines whether the navigation should proceed into
 // an edge having chr as its first letter
 func (fn *FindNavigator) PushEdge(chr rune) bool {
+	// If the edge matches our place in the sought word, go for it
 	return fn.word[fn.index] == chr
 }
 
@@ -119,11 +122,9 @@ func (fn *FindNavigator) IsAccepting() bool {
 // Accepts returns true if the navigator should accept and 'eat' the
 // given character
 func (fn *FindNavigator) Accepts(chr rune) bool {
-	if chr != fn.word[fn.index] {
-		// Not a correct next character in the word
-		return false
-	}
-	// This is a correct character: advance our index
+	// For the FindNavigator, we never enter an edge unless
+	// we have the correct character, so we simply advance
+	// the index and return true
 	fn.index++
 	return true
 }

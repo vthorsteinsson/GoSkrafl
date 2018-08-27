@@ -59,6 +59,14 @@ type Covers map[Coordinate]Cover
 // all the 7 tiles in the rack in one move
 const BingoBonus = 50
 
+// NewTileMove creates a new TileMove object with the given
+// Covers, i.e. Tile coverings
+func NewTileMove(game *Game, covers Covers) *TileMove {
+	move := &TileMove{}
+	move.Init(game, covers)
+	return move
+}
+
 // String return a string description of a TileMove
 func (move *TileMove) String() string {
 	// TODO: This returns only the coordinates of the move
@@ -257,6 +265,11 @@ func (move *TileMove) Score(game *Game) int {
 	// Only calculate the score once, then cache it
 	move.CachedScore = &score
 	return score
+}
+
+// NewPassMove returns a reference to a fresh PassMove
+func NewPassMove() *PassMove {
+	return &PassMove{}
 }
 
 // String return a string description of the PassMove

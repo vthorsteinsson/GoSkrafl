@@ -63,10 +63,11 @@ func initTileSet(scores map[rune]int, tiles map[rune]int) *TileSet {
 	return &tileSet
 }
 
-// initnewTileSet creates a fresh array (slice) of tiles
-// with the correct number of each letter, and marked with
-// the individual tile scores
-func initNewTileSet() *TileSet {
+// initNewIcelandicTileSet creates the "new" Icelandic
+// tile set (as defined by Skraflfélag Íslands) as a fresh array
+// (slice) of tiles with the correct number of each letter,
+// and marked with the individual tile scores
+func initNewIcelandicTileSet() *TileSet {
 
 	// The scores of each letter
 	scores := map[rune]int{
@@ -93,8 +94,8 @@ func initNewTileSet() *TileSet {
 	return initTileSet(scores, tiles)
 }
 
-// NewTileSet is the new standard Icelandic tile set
-var NewTileSet = initNewTileSet()
+// NewIcelandicTileSet is the new standard Icelandic tile set
+var NewIcelandicTileSet = initNewIcelandicTileSet()
 
 // Initialize a bag from a tile set and return a reference to it
 func makeBag(tileSet *TileSet) *Bag {
