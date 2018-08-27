@@ -4,7 +4,7 @@ A fast SCRABBLE(tm) engine written in Go
 ### About
 
 This project aims to create a very fast SCRABBLE(tm) engine. It will
-support any language (using Unicode and UTF-8 throughout) as well as
+accommodate most languages (using Unicode and UTF-8 throughout) as well as
 any tile bag configuration. It supports the whole game lifecycle, board,
 rack and bag management, full move validation, scoring, word and
 cross-word checks, and robot players.
