@@ -215,3 +215,136 @@ func (lpn *LeftPermutationNavigator) Accept(matched string, final bool, state *n
 		&LeftPart{matched: matched, rack: lpn.rack, state: state},
 	)
 }
+
+// Robot finds a Move to play in a Game according to its strategy
+type Robot struct {
+	game *Game
+}
+
+// Axis stores information about a row or column on the board where
+// the autoplayer is looking for valid moves
+type Axis struct {
+	game       *Game
+	isAnchor   [BoardSize]bool
+	crossCheck [BoardSize]uint
+	sq         [BoardSize]*Square
+}
+
+// Init initializes a fresh Axis object, associating it with a board
+// row or column
+func (axis *Axis) Init(game *Game, index int, horizontal bool) {
+	axis.game = game
+	// Build an array of pointers to the squares on this axis
+	for i := 0; i < BoardSize; i++ {
+		if horizontal {
+			axis.sq[i] = game.Board.Sq(index, i)
+		} else {
+			axis.sq[i] = game.Board.Sq(i, index)
+		}
+	}
+	if game.NumTiles == 0 {
+		// If no tile has yet been placed on the board,
+		// mark the center square as an anchor
+		axis.isAnchor[BoardSize/2] = (index == BoardSize/2)
+	} else {
+		// TODO: Calculate isAnchor array
+	}
+	// TODO: Compute cross sets, etc.
+}
+
+// genMovesFromAnchor returns the available moves that use the given square
+// within the Axis as an anchor
+func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*LeftPart) []Move {
+	// TODO
+	return make([]Move, 0)
+}
+
+func min(i1, i2 int) int {
+	if i1 <= i2 {
+		return i1
+	}
+	return i2
+}
+
+// GenerateMoves returns a list of all legal moves along this Axis
+func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
+	moves := make([]Move, 0)
+	lastAnchor := -1
+	// Process the anchors, one by one, from left to right
+	for i := 0; i < BoardSize; i++ {
+		if !axis.isAnchor[i] {
+			continue
+		}
+		// This is an anchor square: count open squares to its left,
+		// up to but not including the previous anchor, if any
+		openCnt := 0
+		left := i
+		for left > 0 && left > (lastAnchor+1) && axis.sq[left-1].Tile == nil {
+			openCnt++
+			left--
+		}
+		moves = append(moves,
+			axis.genMovesFromAnchor(i, min(openCnt, lenRack-1), leftParts)...,
+		)
+		lastAnchor = i
+	}
+	return moves
+}
+
+// Init initializes a fresh Robot instance
+func (robot *Robot) Init(game *Game) {
+	robot.game = game
+	// robot.moves is intentionally left as a nil slice
+}
+
+// GenerateMoves returns a list of all legal moves in a Game
+func (robot *Robot) GenerateMoves() []Move {
+	game := robot.game
+	rack := game.Racks[game.PlayerToMove()].AsString()
+	lenRack := len([]rune(rack))
+	leftParts := FindLeftParts(game.Dawg, rack)
+	// Result channel containing up to BoardSize*2 move lists
+	resultMoves := make(chan []Move, BoardSize*2)
+	// Goroutine to find moves on a particular axis
+	// (row or column)
+	kickOffAxis := func(index int, horizontal bool) {
+		var axis Axis
+		axis.Init(game, index, horizontal)
+		// Generate a list of moves and send it on the result channel
+		resultMoves <- axis.GenerateMoves(lenRack, leftParts)
+	}
+	// Start the 30 goroutines (columns and rows = 2 * BoardSize)
+	// Horizontal rows
+	for i := 0; i < BoardSize; i++ {
+		go kickOffAxis(i, true)
+	}
+	// Vertical columns
+	for i := 0; i < BoardSize; i++ {
+		go kickOffAxis(i, false)
+	}
+	// Collect move candidates from all goroutines and
+	// append them to the moves list
+	moves := make([]Move, 0)
+	for i := 0; i < BoardSize*2; i++ {
+		moves = append(moves, (<-resultMoves)...)
+	}
+	// All goroutines have returned and we have a complete list
+	// of generated moves
+	return moves
+}
+
+// PickMove chooses a 'best' move to play from a list of legal moves,
+// in accordance with the Robot's strategy
+func (robot *Robot) PickMove([]Move) Move {
+	// TODO
+	return nil
+}
+
+// HighestScoreRobot returns an instance of a Robot playing with the
+// HighestScore strategy, i.e. one that always picks the
+// highest-scoring available move
+func HighestScoreRobot(game *Game) *Robot {
+	robot := &Robot{}
+	robot.Init(game)
+	return robot
+}

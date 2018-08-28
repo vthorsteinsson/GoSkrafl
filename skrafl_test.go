@@ -297,9 +297,54 @@ func TestTileMove(t *testing.T) {
 	if tileMove.Horizontal {
 		t.Errorf("Move is incorrectly identified as being horizontal")
 	}
+}
+
+func TestFindLeftParts(t *testing.T) {
 	// Find left parts
+	game := NewIcelandicGame()
 	leftParts := FindLeftParts(game.Dawg, game.Racks[game.PlayerToMove()].AsString())
 	_ = leftParts
+}
+
+func TestBitMaps(t *testing.T) {
+	// Test bit-mapped sets of runes. Only runes that are already in the alphabet
+	// can occur in a bit-mapped set.
+	alphabet := IcelandicDictionary.alphabet
+	set := alphabet.MakeSet([]rune{'á', 'l', 'a', 'f', 'o', 's', 's'})
+	if !alphabet.Member('á', set) {
+		t.Errorf("Rune 'á' should be member of set")
+	}
+	if !alphabet.Member('s', set) {
+		t.Errorf("Rune 's' should be member of set")
+	}
+	if alphabet.Member('j', set) {
+		t.Errorf("Rune 'j' should not be member of set")
+	}
+	if alphabet.Member('c', set) {
+		t.Errorf("Rune 'c' should not be member of set")
+	}
+	// Test smiley face
+	if alphabet.Member('😄', set) {
+		t.Errorf("Rune '😄' should not be member of set")
+	}
+}
+
+func TestStringify(t *testing.T) {
 	// Stringify the game (no test but at least this enhances coverage)
+	game := NewIcelandicGame()
 	_ = game.String()
+}
+
+func TestRobot(t *testing.T) {
+	game := NewIcelandicGame()
+	robot := HighestScoreRobot(game)
+	moves := robot.GenerateMoves()
+	move := robot.PickMove(moves)
+	if move != nil {
+		if !move.IsValid(game) {
+			t.Errorf("Invalid move generated")
+		} else {
+			move.Apply(game)
+		}
+	}
 }

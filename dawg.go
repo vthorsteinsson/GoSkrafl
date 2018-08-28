@@ -69,6 +69,7 @@ type Alphabet struct {
 	asString string
 	asRunes  []rune
 	bitMap   BitMap
+	allSet   uint
 }
 
 // A Prefix is an array of runes that prefixes an outgoing
@@ -113,6 +114,7 @@ func (a *Alphabet) Init(alphabet string) {
 	a.asString = alphabet
 	a.asRunes = []rune(alphabet)
 	a.bitMap = make(BitMap)
+	a.allSet = uint(0)
 	last := uint(0)
 	for i, r := range a.asRunes {
 		bit := uint(1 << uint(i))
@@ -121,6 +123,7 @@ func (a *Alphabet) Init(alphabet string) {
 			panic("Alphabet cannot have more runes than the number of bits in uint")
 		}
 		a.bitMap[r] = bit
+		a.allSet |= bit
 		last = bit
 	}
 }
@@ -129,6 +132,9 @@ func (a *Alphabet) Init(alphabet string) {
 func (a *Alphabet) MakeSet(runes []rune) uint {
 	s := uint(0)
 	for _, r := range runes {
+		// Note: if r is not in the map, Go returns uint(0),
+		// which is what we want here, so an
+		// if bit, ok := ... test is not required.
 		s |= a.bitMap[r]
 	}
 	return s
@@ -136,6 +142,7 @@ func (a *Alphabet) MakeSet(runes []rune) uint {
 
 // Member checks whether a rune is represented in a bit map
 func (a *Alphabet) Member(r rune, set uint) bool {
+	// If r is not in the map, the lookup returns uint(0)
 	return (set & a.bitMap[r]) != 0
 }
 
@@ -555,7 +562,8 @@ func makeDawg(fileName string, alphabet string) *Dawg {
 }
 
 // IcelandicAlphabet contains the Icelandic letters as they are indexed
-// in the compressed binary DAWG.
+// in the compressed binary DAWG. Note that the Icelandic alphabet does
+// not contain 'c', 'q', w' or 'z'.
 // TODO: move this to the DAWG file.
 const IcelandicAlphabet = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
 
