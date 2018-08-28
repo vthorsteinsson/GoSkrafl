@@ -34,28 +34,42 @@ import (
 // Dawg encapsulates the externally generated,
 // compressed Directed Acyclic Word Graph as a byte buffer.
 // Within the DAWG, letters from the alphabet are represented
-// as indices into the ALPHABET string (below).
+// as indices into the alphabet string (below).
 // The Coding map translates these indices to the actual
 // letters.
 // The iterNodeCache map is built on the fly, when
 // each Dawg node is traversed for the first time.
 // In practice, many nodes will never be traversed.
 type Dawg struct {
-	b      []byte
+	// The binary buffer containing the compressed DAWG
+	b []byte
+	// A mapping from alphabet indices, eventually having
+	// the high bit (0x80) set to indicate finality, to rune slices
 	coding Coding
+	// The alphabet used by the DAWG vocabulary
+	alphabet Alphabet
 	// mux protects the iterNodeCache
 	mux           sync.Mutex
 	iterNodeCache map[uint32][]navState
 }
 
-// ALPHABET contains the letters as they are indexed
-// in the compressed binary DAWG.
-// TODO: move this to the DAWG file.
-const ALPHABET = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
-
 // Coding maps an encoded byte to a legal letter, eventually
 // suffixed with '|' to denote a final node in the Dawg
 type Coding map[byte]Prefix
+
+// BitMap maps runes to corresponding bit positions within an
+// uint. It follows that the Alphabet cannot have more runes
+// in it than uint has bits. Fortunately, few alphabets have
+// more than 32/64 runes in them.
+type BitMap map[rune]uint
+
+// Alphabet stores the set of runes found within the DAWG,
+// and supports bit map (set) operations
+type Alphabet struct {
+	asString string
+	asRunes  []rune
+	bitMap   BitMap
+}
 
 // A Prefix is an array of runes that prefixes an outgoing
 // edge in the Dawg
@@ -91,6 +105,38 @@ type FindNavigator struct {
 	lenWord int
 	index   int
 	found   bool
+}
+
+// Init initializes an Alphabet, including a precalculated
+// bit map for its runes
+func (a *Alphabet) Init(alphabet string) {
+	a.asString = alphabet
+	a.asRunes = []rune(alphabet)
+	a.bitMap = make(BitMap)
+	last := uint(0)
+	for i, r := range a.asRunes {
+		bit := uint(1 << uint(i))
+		if bit < last {
+			// Bit overflow, too many runes to be stored in uint
+			panic("Alphabet cannot have more runes than the number of bits in uint")
+		}
+		a.bitMap[r] = bit
+		last = bit
+	}
+}
+
+// MakeSet converts a list of runes to a bit map
+func (a *Alphabet) MakeSet(runes []rune) uint {
+	s := uint(0)
+	for _, r := range runes {
+		s |= a.bitMap[r]
+	}
+	return s
+}
+
+// Member checks whether a rune is represented in a bit map
+func (a *Alphabet) Member(r rune, set uint) bool {
+	return (set & a.bitMap[r]) != 0
 }
 
 // Init initializes a FindNavigator with the word to search for
@@ -427,7 +473,7 @@ func (nav *Navigation) FromEdge(state *navState, matched string) {
 }
 
 // Init reads the Dawg into memory (TODO: or memory-maps it)
-func (dawg *Dawg) Init(filePath string) error {
+func (dawg *Dawg) Init(filePath string, alphabet string) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -448,7 +494,8 @@ func (dawg *Dawg) Init(filePath string) error {
 	// Create the alphabet decoding map
 	dawg.coding = make(Coding)
 	i := byte(0)
-	for _, chr := range ALPHABET {
+	dawg.alphabet.Init(alphabet)
+	for _, chr := range alphabet {
 		dawg.coding[i] = make(Prefix, 1)
 		dawg.coding[i][0] = chr
 		iHigh := i | 0x80
@@ -496,18 +543,23 @@ func (dawg *Dawg) Match(pattern string) []string {
 // makeDawg initializes a Dawg instance and loads its contents
 // from a binary file located in the same directory as the
 // skrafl module
-func makeDawg(fileName string) *Dawg {
+func makeDawg(fileName string, alphabet string) *Dawg {
 	dawg := &Dawg{}
 	path := os.ExpandEnv("${GOPATH}/src/github.com/vthorsteinsson/GoSkrafl/" + fileName)
 	path = filepath.FromSlash(path)
-	err := dawg.Init(path)
+	err := dawg.Init(path, alphabet)
 	if err != nil {
 		return nil
 	}
 	return dawg
 }
 
+// IcelandicAlphabet contains the Icelandic letters as they are indexed
+// in the compressed binary DAWG.
+// TODO: move this to the DAWG file.
+const IcelandicAlphabet = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
+
 // IcelandicDictionary is a Dawg instance containing the Icelandic
 // Scrabble(tm) dictionary, as derived from the BÍN database
 // (Beygingarlýsing íslensks nútímamáls)
-var IcelandicDictionary = makeDawg("ordalisti.bin.dawg")
+var IcelandicDictionary = makeDawg("ordalisti.bin.dawg", IcelandicAlphabet)
