@@ -39,6 +39,8 @@ const RackSize = 7
 type Board struct {
 	Squares   [BoardSize][BoardSize]Square
 	Adjacents [BoardSize][BoardSize]AdjSquares
+	// The number of tiles on the board
+	NumTiles int
 }
 
 // Indices into AdjSquares

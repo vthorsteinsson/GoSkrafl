@@ -119,7 +119,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("First move must go through center")
 	}
 	// Check number of tiles now on the Board
-	if game.NumTiles != 0 {
+	if game.TilesOnBoard() != 0 {
 		t.Errorf("Board should have 0 tiles after erroneous move")
 	}
 	if game.PlayerToMove() != 0 {
@@ -131,7 +131,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Legal initial move rejected")
 	}
 	// Check number of tiles now on the Board
-	if game.NumTiles != 4 {
+	if game.TilesOnBoard() != 4 {
 		t.Errorf("Board should have 4 tiles after correct move")
 	}
 	// Check number of tiles left in the bag
@@ -337,8 +337,8 @@ func TestStringify(t *testing.T) {
 
 func TestRobot(t *testing.T) {
 	game := NewIcelandicGame()
-	robot := HighestScoreRobot(game)
-	moves := robot.GenerateMoves()
+	robot := HighestScoreRobot()
+	moves := robot.GenerateMoves(game.State())
 	move := robot.PickMove(moves)
 	if move != nil {
 		if !move.IsValid(game) {

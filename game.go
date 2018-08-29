@@ -38,9 +38,17 @@ type Game struct {
 	Racks       [2]Rack
 	Bag         *Bag
 	MoveList    []Move
-	NumTiles    int
 	// The DAWG dictionary to use in the game
 	Dawg *Dawg
+}
+
+// GameState contains the bare minimum of information
+// that is needed for a robot player to decide on a move
+// in a Game.
+type GameState struct {
+	Dawg  *Dawg
+	Board *Board
+	Rack  *Rack // The rack of the player whose move it is
 }
 
 // Init initializes a new game with a fresh bag copied
@@ -63,6 +71,13 @@ func NewIcelandicGame() *Game {
 	game := &Game{}
 	game.Init(NewIcelandicTileSet, IcelandicDictionary)
 	return game
+}
+
+// State returns a new GameState instance describing the state of the
+// game in a minimal manner so that a robot player can decide on a move
+func (game *Game) State() *GameState {
+	player := game.PlayerToMove()
+	return &GameState{game.Dawg, &game.Board, &game.Racks[player]}
 }
 
 // TileAt is a convenience function for returning the Tile at
@@ -100,14 +115,14 @@ func (game *Game) PlayTile(tile *Tile, row, col int) bool {
 	}
 	tile.PlayedBy = playerToMove
 	sq.Tile = tile
-	game.NumTiles++
+	game.Board.NumTiles++
 	return true
 }
 
 // TilesOnBoard returns the number of tiles already laid down
 // on the board
 func (game *Game) TilesOnBoard() int {
-	return game.NumTiles
+	return game.Board.NumTiles
 }
 
 // SetPlayerNames sets the names of the two players

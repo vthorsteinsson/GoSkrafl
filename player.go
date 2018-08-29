@@ -218,13 +218,12 @@ func (lpn *LeftPermutationNavigator) Accept(matched string, final bool, state *n
 
 // Robot finds a Move to play in a Game according to its strategy
 type Robot struct {
-	game *Game
 }
 
 // Axis stores information about a row or column on the board where
 // the autoplayer is looking for valid moves
 type Axis struct {
-	game       *Game
+	board      *Board
 	isAnchor   [BoardSize]bool
 	crossCheck [BoardSize]uint
 	sq         [BoardSize]*Square
@@ -232,17 +231,17 @@ type Axis struct {
 
 // Init initializes a fresh Axis object, associating it with a board
 // row or column
-func (axis *Axis) Init(game *Game, index int, horizontal bool) {
-	axis.game = game
+func (axis *Axis) Init(board *Board, index int, horizontal bool) {
+	axis.board = board
 	// Build an array of pointers to the squares on this axis
 	for i := 0; i < BoardSize; i++ {
 		if horizontal {
-			axis.sq[i] = game.Board.Sq(index, i)
+			axis.sq[i] = board.Sq(index, i)
 		} else {
-			axis.sq[i] = game.Board.Sq(i, index)
+			axis.sq[i] = board.Sq(i, index)
 		}
 	}
-	if game.NumTiles == 0 {
+	if board.NumTiles == 0 {
 		// If no tile has yet been placed on the board,
 		// mark the center square as an anchor
 		axis.isAnchor[BoardSize/2] = (index == BoardSize/2)
@@ -292,24 +291,21 @@ func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
 }
 
 // Init initializes a fresh Robot instance
-func (robot *Robot) Init(game *Game) {
-	robot.game = game
-	// robot.moves is intentionally left as a nil slice
+func (robot *Robot) Init() {
 }
 
 // GenerateMoves returns a list of all legal moves in a Game
-func (robot *Robot) GenerateMoves() []Move {
-	game := robot.game
-	rack := game.Racks[game.PlayerToMove()].AsString()
+func (robot *Robot) GenerateMoves(state *GameState) []Move {
+	rack := state.Rack.AsString()
 	lenRack := len([]rune(rack))
-	leftParts := FindLeftParts(game.Dawg, rack)
+	leftParts := FindLeftParts(state.Dawg, rack)
 	// Result channel containing up to BoardSize*2 move lists
 	resultMoves := make(chan []Move, BoardSize*2)
 	// Goroutine to find moves on a particular axis
 	// (row or column)
 	kickOffAxis := func(index int, horizontal bool) {
 		var axis Axis
-		axis.Init(game, index, horizontal)
+		axis.Init(state.Board, index, horizontal)
 		// Generate a list of moves and send it on the result channel
 		resultMoves <- axis.GenerateMoves(lenRack, leftParts)
 	}
@@ -343,8 +339,6 @@ func (robot *Robot) PickMove([]Move) Move {
 // HighestScoreRobot returns an instance of a Robot playing with the
 // HighestScore strategy, i.e. one that always picks the
 // highest-scoring available move
-func HighestScoreRobot(game *Game) *Robot {
-	robot := &Robot{}
-	robot.Init(game)
-	return robot
+func HighestScoreRobot() *Robot {
+	return &Robot{}
 }
