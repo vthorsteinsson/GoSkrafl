@@ -128,13 +128,18 @@ func (a *Alphabet) Init(alphabet string) {
 	}
 }
 
-// MakeSet converts a list of runes to a bit map
+// MakeSet converts a list of runes to a bit map,
+// with the extra twist that if any of the runes is '?',
+// a bit map with all bits set is returned
 func (a *Alphabet) MakeSet(runes []rune) uint {
 	s := uint(0)
 	for _, r := range runes {
 		// Note: if r is not in the map, Go returns uint(0),
 		// which is what we want here, so an
 		// if bit, ok := ... test is not required.
+		if r == '?' {
+			return a.allSet
+		}
 		s |= a.bitMap[r]
 	}
 	return s
@@ -144,6 +149,11 @@ func (a *Alphabet) MakeSet(runes []rune) uint {
 func (a *Alphabet) Member(r rune, set uint) bool {
 	// If r is not in the map, the lookup returns uint(0)
 	return (set & a.bitMap[r]) != 0
+}
+
+// Length returns the number of runes in the Alphabet
+func (a *Alphabet) Length() int {
+	return len(a.asRunes)
 }
 
 // Init initializes a FindNavigator with the word to search for
@@ -296,9 +306,9 @@ type matchTuple struct {
 }
 
 // Init initializes a MatchNavigator with the word to search for
-func (mn *MatchNavigator) Init(pattern string) {
+func (mn *MatchNavigator) Init(pattern []rune) {
 	// Convert the word to a list of runes
-	mn.pattern = []rune(pattern)
+	mn.pattern = pattern
 	mn.lenP = len(mn.pattern)
 	mn.chMatch = mn.pattern[0]
 	mn.isWildcard = mn.chMatch == '?'
@@ -371,6 +381,21 @@ func (nav *Navigation) Go(dawg *Dawg, navigator Navigator) {
 	nav.navigator = navigator
 	if navigator.IsAccepting() {
 		nav.FromNode(0, "")
+	}
+	navigator.Done()
+}
+
+// Resume continues a navigation on the underlying Dawg
+// using the given Navigator, from a previously saved navigation
+// state
+func (nav *Navigation) Resume(dawg *Dawg, navigator Navigator, state *navState, matched string) {
+	if dawg == nil || navigator == nil {
+		return
+	}
+	nav.dawg = dawg
+	nav.navigator = navigator
+	if navigator.IsAccepting() {
+		nav.FromEdge(state, matched)
 	}
 	navigator.Done()
 }
@@ -468,7 +493,11 @@ func (nav *Navigation) FromEdge(state *navState, matched string) {
 		}
 		if nav.isResumable {
 			// We want the full navigation state to be passed to navigator.Accept()
-			navigator.Accept(matched, final, &navState{prefix: state.prefix[j:], nextNode: state.nextNode})
+			navigator.Accept(
+				matched,
+				final,
+				&navState{prefix: state.prefix[j:], nextNode: state.nextNode},
+			)
 		} else {
 			// No need to pass the full state
 			navigator.Accept(matched, final, nil)
@@ -516,13 +545,34 @@ func (dawg *Dawg) Init(filePath string, alphabet string) error {
 	return nil
 }
 
+// Navigate performs a navigation through the DAWG under the
+// control of a Navigator
+func (dawg *Dawg) Navigate(navigator Navigator) {
+	var nav Navigation
+	nav.Go(dawg, navigator)
+}
+
+// NavigateResumable performs a resumable navigation through the DAWG under the
+// control of a Navigator
+func (dawg *Dawg) NavigateResumable(navigator Navigator) {
+	var nav Navigation
+	nav.isResumable = true
+	nav.Go(dawg, navigator)
+}
+
+// Resume resumes a navigation through the DAWG under the
+// control of a Navigator, from a previously saved state
+func (dawg *Dawg) Resume(navigator Navigator, state *navState, matched string) {
+	var nav Navigation
+	nav.Resume(dawg, navigator, state, matched)
+}
+
 // Find attempts to find a word in a DAWG, returning true if
 // found or false if not.
 func (dawg *Dawg) Find(word string) bool {
 	var fn FindNavigator
 	fn.Init(word)
-	var nav Navigation
-	nav.Go(dawg, &fn)
+	dawg.Navigate(&fn)
 	return fn.found
 }
 
@@ -532,18 +582,25 @@ func (dawg *Dawg) Find(word string) bool {
 func (dawg *Dawg) Permute(rack string, minLen int) []string {
 	var pn PermutationNavigator
 	pn.Init(rack, minLen)
-	var nav Navigation
-	nav.Go(dawg, &pn)
+	dawg.Navigate(&pn)
 	return pn.results
 }
 
 // Match returns all words in the Dawg that match a
-// given pattern, which can include '?' wildcards/blanks.
+// given pattern string, which can include '?' wildcards/blanks.
 func (dawg *Dawg) Match(pattern string) []string {
 	var mn MatchNavigator
+	mn.Init([]rune(pattern))
+	dawg.Navigate(&mn)
+	return mn.results
+}
+
+// MatchRunes returns all words in the Dawg that match a
+// given pattern, which can include '?' wildcards/blanks.
+func (dawg *Dawg) MatchRunes(pattern []rune) []string {
+	var mn MatchNavigator
 	mn.Init(pattern)
-	var nav Navigation
-	nav.Go(dawg, &mn)
+	dawg.Navigate(&mn)
 	return mn.results
 }
 

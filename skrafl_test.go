@@ -337,9 +337,25 @@ func TestStringify(t *testing.T) {
 
 func TestRobot(t *testing.T) {
 	game := NewIcelandicGame()
+	game.SetPlayerNames("Villi", "Gopher")
 	robot := HighestScoreRobot()
-	moves := robot.GenerateMoves(game.State())
+	moves := game.State().GenerateMoves()
 	move := robot.PickMove(moves)
+	if move != nil {
+		if !move.IsValid(game) {
+			t.Errorf("Invalid move generated")
+		} else {
+			move.Apply(game)
+		}
+	}
+	// Construct a move from the player 0 rack
+	state := game.State()
+	tiles := state.Rack.Extract(4, 'x')
+	if !game.MakeTileMove(5, 7, false, tiles) {
+		t.Errorf("Legal first move rejected")
+	}
+	moves = game.State().GenerateMoves()
+	move = robot.PickMove(moves)
 	if move != nil {
 		if !move.IsValid(game) {
 			t.Errorf("Invalid move generated")

@@ -229,6 +229,30 @@ func (board *Board) CrossScore(row, col int, horizontal bool) (hasCrossing bool,
 	return // hasCrossing, score
 }
 
+// CrossWords returns the word fragments above and below, or to the left and right of, the
+// given co-ordinate on the board.
+func (board *Board) CrossWords(row, col int, horizontal bool) (left, right string) {
+	var direction int
+	// The C ternary operator is sorely missed :-(
+	if horizontal {
+		direction = LEFT
+	} else {
+		direction = ABOVE
+	}
+	for _, tile := range board.Fragment(row, col, direction) {
+		left = string(tile.Meaning) + left
+	}
+	if horizontal {
+		direction = RIGHT
+	} else {
+		direction = BELOW
+	}
+	for _, tile := range board.Fragment(row, col, direction) {
+		right += string(tile.Meaning)
+	}
+	return // left, right
+}
+
 // Init initializes an empty board
 func (board *Board) Init() {
 
@@ -325,8 +349,8 @@ func (rack *Rack) String() string {
 	return sb.String()
 }
 
-// AsString returns the tiles in the Rack as a contiguous string
-func (rack *Rack) AsString() string {
+// AsRunes returns the tiles in the Rack as a list of runes
+func (rack *Rack) AsRunes() []rune {
 	runes := make([]rune, 0, RackSize)
 	for i := 0; i < RackSize; i++ {
 		sq := &rack.Slots[i]
@@ -334,7 +358,19 @@ func (rack *Rack) AsString() string {
 			runes = append(runes, sq.Tile.Letter)
 		}
 	}
-	return string(runes)
+	return runes
+}
+
+// AsString returns the tiles in the Rack as a contiguous string
+func (rack *Rack) AsString() string {
+	return string(rack.AsRunes())
+}
+
+// AsSet returns the rack as a bit-mapped set of runes.
+// If the rack contains a blank tile ('?'), the bitmap
+// will have all bits set.
+func (rack *Rack) AsSet(alphabet *Alphabet) uint {
+	return alphabet.MakeSet(rack.AsRunes())
 }
 
 // HasTile returns true if the given Tile is in the Rack

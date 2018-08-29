@@ -37,8 +37,7 @@ type LeftFindNavigator struct {
 	// Below is the result of the LeftFindNavigator,
 	// which is used to continue navigation after a left part
 	// has been found on the board
-	matched string
-	state   *navState
+	state *navState
 }
 
 // Init initializes a LeftFindNavigator with the word to search for
@@ -88,7 +87,6 @@ func (lfn *LeftFindNavigator) Accepts(chr rune) bool {
 func (lfn *LeftFindNavigator) Accept(matched string, final bool, state *navState) {
 	if lfn.index == lfn.lenP {
 		// Found the whole left part; save its position (state)
-		lfn.matched = matched
 		lfn.state = state
 	}
 }
@@ -130,9 +128,7 @@ func (lp *LeftPart) String() string {
 func FindLeftParts(dawg *Dawg, rack string) [][]*LeftPart {
 	var lpn LeftPermutationNavigator
 	lpn.Init(rack)
-	var nav Navigation
-	nav.isResumable = true
-	nav.Go(dawg, &lpn)
+	dawg.NavigateResumable(&lpn)
 	return lpn.leftParts
 }
 
@@ -223,16 +219,25 @@ type Robot struct {
 // Axis stores information about a row or column on the board where
 // the autoplayer is looking for valid moves
 type Axis struct {
-	board      *Board
-	isAnchor   [BoardSize]bool
+	state      *GameState
+	horizontal bool
+	// A bitmap of the letters in the rack, having all bits set if
+	// the rack has a blank ('?') in it
+	rackSet uint
+	// Array of convenience pointers to the board squares on this Axis
+	sq [BoardSize]*Square
+	// A bitmap of the letters that are allowed on this square,
+	// 0 if not an anchor square
 	crossCheck [BoardSize]uint
-	sq         [BoardSize]*Square
 }
 
 // Init initializes a fresh Axis object, associating it with a board
 // row or column
-func (axis *Axis) Init(board *Board, index int, horizontal bool) {
-	axis.board = board
+func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal bool) {
+	axis.state = state
+	axis.rackSet = rackSet
+	axis.horizontal = horizontal
+	board := state.Board
 	// Build an array of pointers to the squares on this axis
 	for i := 0; i < BoardSize; i++ {
 		if horizontal {
@@ -243,19 +248,111 @@ func (axis *Axis) Init(board *Board, index int, horizontal bool) {
 	}
 	if board.NumTiles == 0 {
 		// If no tile has yet been placed on the board,
-		// mark the center square as an anchor
-		axis.isAnchor[BoardSize/2] = (index == BoardSize/2)
+		// mark the center square of the center column as an anchor
+		// by setting its crossCheck set to allow the entire rack
+		if index == BoardSize/2 && !horizontal {
+			axis.crossCheck[BoardSize/2] = rackSet
+		}
 	} else {
-		// TODO: Calculate isAnchor array
+		// Mark all empty squares having at least one occupied
+		// adjacent square as anchors
+		dawg := state.Dawg
+		alphabetLength := dawg.alphabet.Length()
+		for i := 0; i < BoardSize; i++ {
+			sq := axis.sq[i]
+			if sq.Tile == nil && board.NumAdjacentTiles(sq.Row, sq.Col) > 0 {
+				// This is an anchor square
+				crossSet := rackSet
+				// Check whether the cross word(s) limit the set of allowed
+				// letters in this anchor square
+				left, right := board.CrossWords(sq.Row, sq.Col, !horizontal)
+				lenLeft := len(left)
+				if lenLeft > 0 || len(right) > 0 {
+					// We ask the DAWG to find all words consisting of the
+					// left cross word + wildcard + right cross word,
+					// for instance 'f?lt' if the left word is 'f' and the
+					// right one is 'lt' - yielding the result set
+					// { 'falt', 'filt', fúlt' }, which we convert to the
+					// legal cross set of [ 'a', 'i', 'ú' ] and intersect
+					// that with the rack
+					matches := dawg.Match(left + "?" + right)
+					// Collect the 'middle' letters (the ones standing in
+					// for the wildcard)
+					runes := make([]rune, 0, alphabetLength)
+					for _, match := range matches {
+						runes = append(runes, ([]rune(match))[lenLeft])
+					}
+					// Intersect the set of allowed cross-check letters
+					// with the rack
+					crossSet &= dawg.alphabet.MakeSet(runes)
+				}
+				axis.crossCheck[i] = crossSet
+			}
+		}
 	}
-	// TODO: Compute cross sets, etc.
 }
 
 // genMovesFromAnchor returns the available moves that use the given square
 // within the Axis as an anchor
 func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*LeftPart) []Move {
-	// TODO
-	return make([]Move, 0)
+	dawg, board := axis.state.Dawg, axis.state.Board
+	sq := axis.sq[anchor]
+	var direction int
+	if axis.horizontal {
+		direction = LEFT
+	} else {
+		direction = ABOVE
+	}
+	if maxLeft == 0 && anchor > 0 && axis.sq[anchor-1].Tile == nil {
+		// We have a left part already on the board: try to complete it
+		// Get the left part, as a list of Tiles
+		fragment := board.Fragment(sq.Row, sq.Col, direction)
+		// The fragment list is backwards; convert it to a proper Prefix,
+		// which is a list of runes
+		left := make(Prefix, len(fragment))
+		for i, tile := range fragment {
+			left[len(fragment)-1-i] = tile.Meaning
+		}
+		// Do the DAWG navigation to find the left part
+		var lfn LeftFindNavigator
+		lfn.Init(left)
+		dawg.NavigateResumable(&lfn)
+		if lfn.state == nil {
+			// No matching prefix found: there cannot be any
+			// valid completions of the left part that is already
+			// there. Return a nil slice.
+			return nil
+		}
+		// We found a matching prefix in the graph:
+		// do an ExtendRight from that location, using the whole rack
+		var ern ExtendRightNavigator
+		ern.Init(anchor, axis.state.Rack)
+		dawg.Resume(&ern, lfn.state, string(left))
+		// Return the move list accumulated by the ExtendRightNavigator
+		return ern.moves
+	}
+	// We are not completing an existing left part
+	// Begin by extending an empty prefix to the right, i.e. placing
+	// tiles on the anchor square itself and to its right
+	moves := make([]Move, 0)
+	var ern ExtendRightNavigator
+	ern.Init(anchor, axis.state.Rack)
+	dawg.Navigate(&ern)
+	// Collect the moves found so far
+	moves = append(moves, ern.moves...)
+
+	// Follow this by an effort to permute left prefixes into the
+	// open space to the left of the anchor square
+	for leftLen := 1; leftLen <= maxLeft; leftLen++ {
+		leftList := leftParts[leftLen-1]
+		for _, leftPart := range leftList {
+			var ern ExtendRightNavigator
+			ern.Init(anchor, leftPart.rack)
+			dawg.Resume(&ern, leftPart.state, leftPart.matched)
+			moves = append(moves, ern.moves...)
+		}
+	}
+	return moves
 }
 
 func min(i1, i2 int) int {
@@ -271,7 +368,9 @@ func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
 	lastAnchor := -1
 	// Process the anchors, one by one, from left to right
 	for i := 0; i < BoardSize; i++ {
-		if !axis.isAnchor[i] {
+		if axis.crossCheck[i] == 0 {
+			// This is not an anchor, or at least not a square that we
+			// can put a rack tile on
 			continue
 		}
 		// This is an anchor square: count open squares to its left,
@@ -290,22 +389,26 @@ func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
 	return moves
 }
 
-// Init initializes a fresh Robot instance
-func (robot *Robot) Init() {
-}
-
-// GenerateMoves returns a list of all legal moves in a Game
-func (robot *Robot) GenerateMoves(state *GameState) []Move {
-	rack := state.Rack.AsString()
-	lenRack := len([]rune(rack))
-	leftParts := FindLeftParts(state.Dawg, rack)
+// GenerateMoves returns a list of all legal moves in the GameState,
+// considering the Board and the player's Rack. The generation works
+// by dividing the task into 30 sub-tasks of finding legal moves within
+// each Axis, i.e. all columns and rows of the board. These sub-tasks
+// are performed concurrently (and hopefully to some degree in parallel)
+// by 30 goroutines.
+func (state *GameState) GenerateMoves() []Move {
+	rack := state.Rack.AsRunes()
+	// Generate a bit map for the letters in the rack. If the rack
+	// contains blank tiles ('?'), the bit map will have all bits set.
+	rackSet := state.Dawg.alphabet.MakeSet(rack)
+	lenRack := len(rack)
+	leftParts := FindLeftParts(state.Dawg, string(rack))
 	// Result channel containing up to BoardSize*2 move lists
 	resultMoves := make(chan []Move, BoardSize*2)
 	// Goroutine to find moves on a particular axis
 	// (row or column)
 	kickOffAxis := func(index int, horizontal bool) {
 		var axis Axis
-		axis.Init(state.Board, index, horizontal)
+		axis.Init(state, rackSet, index, horizontal)
 		// Generate a list of moves and send it on the result channel
 		resultMoves <- axis.GenerateMoves(lenRack, leftParts)
 	}
@@ -327,6 +430,10 @@ func (robot *Robot) GenerateMoves(state *GameState) []Move {
 	// All goroutines have returned and we have a complete list
 	// of generated moves
 	return moves
+}
+
+// Init initializes a fresh Robot instance
+func (robot *Robot) Init() {
 }
 
 // PickMove chooses a 'best' move to play from a list of legal moves,
