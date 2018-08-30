@@ -193,7 +193,7 @@ func TestTileMove(t *testing.T) {
 	board := &game.Board
 	tileMove := NewTileMove(board,
 		Covers{
-			{10, 8}: tile,
+			{10, 8}: Cover{tile.Letter, tile.Meaning},
 		},
 	)
 	if game.Apply(tileMove) {
@@ -203,8 +203,8 @@ func TestTileMove(t *testing.T) {
 	tile2 := grabTile(1, 1)
 	tileMove = NewTileMove(board,
 		Covers{
-			{10, 8}: tile,
-			{12, 8}: tile2,
+			{10, 8}: Cover{tile.Letter, tile.Meaning},
+			{12, 8}: Cover{tile2.Letter, tile2.Meaning},
 		},
 	)
 	if game.Apply(tileMove) {
@@ -213,8 +213,8 @@ func TestTileMove(t *testing.T) {
 	// Make a non-linear move
 	tileMove = NewTileMove(board,
 		Covers{
-			{5, 6}: tile,
-			{6, 8}: tile2,
+			{5, 6}: Cover{tile.Letter, tile.Meaning},
+			{6, 8}: Cover{tile2.Letter, tile2.Meaning},
 		},
 	)
 	if game.Apply(tileMove) {
@@ -223,8 +223,8 @@ func TestTileMove(t *testing.T) {
 	// Cover an already occupied square
 	tileMove = NewTileMove(board,
 		Covers{
-			{5, 6}: tile,
-			{5, 7}: tile2,
+			{5, 6}: Cover{tile.Letter, tile.Meaning},
+			{5, 7}: Cover{tile2.Letter, tile2.Meaning},
 		},
 	)
 	if game.Apply(tileMove) {
@@ -242,8 +242,8 @@ func TestTileMove(t *testing.T) {
 	// Cover a nonexistent square
 	tileMove = NewTileMove(board,
 		Covers{
-			{-1, 6}: tile,
-			{0, 6}:  tile2,
+			{-1, 6}: Cover{tile.Letter, tile.Meaning},
+			{0, 6}:  Cover{tile2.Letter, tile2.Meaning},
 		},
 	)
 	if game.Apply(tileMove) {
@@ -252,8 +252,8 @@ func TestTileMove(t *testing.T) {
 	// Cover a nonexistent square
 	tileMove = NewTileMove(board,
 		Covers{
-			{BoardSize - 1, 6}: tile,
-			{BoardSize, 6}:     tile2,
+			{BoardSize - 1, 6}: Cover{tile.Letter, tile.Meaning},
+			{BoardSize, 6}:     Cover{tile2.Letter, tile2.Meaning},
 		},
 	)
 	if game.Apply(tileMove) {
@@ -262,8 +262,8 @@ func TestTileMove(t *testing.T) {
 	// Horizontal move
 	tileMove = NewTileMove(board,
 		Covers{
-			{7, 4}:  tile,
-			{7, 10}: tile2,
+			{7, 4}:  Cover{tile.Letter, tile.Meaning},
+			{7, 10}: Cover{tile2.Letter, tile2.Meaning},
 		},
 	)
 	// t.Logf("%v\n", &game)
@@ -276,8 +276,8 @@ func TestTileMove(t *testing.T) {
 	// Vertical move
 	tileMove = NewTileMove(board,
 		Covers{
-			{7, 4}: tile,
-			{8, 4}: tile2,
+			{7, 4}: Cover{tile.Letter, tile.Meaning},
+			{8, 4}: Cover{tile2.Letter, tile2.Meaning},
 		},
 	)
 	if !tileMove.IsValid(game) {
@@ -289,7 +289,7 @@ func TestTileMove(t *testing.T) {
 	// Single cover which creates a vertical move
 	tileMove = NewTileMove(board,
 		Covers{
-			{8, 7}: tile,
+			{8, 7}: Cover{tile.Letter, tile.Meaning},
 		},
 	)
 	if !tileMove.IsValid(game) {
@@ -339,9 +339,9 @@ func TestStringify(t *testing.T) {
 func TestRobot(t *testing.T) {
 	game := NewIcelandicGame()
 	game.SetPlayerNames("Villi", "Gopher")
-	robot := HighestScoreRobot()
-	moves := game.State().GenerateMoves()
-	move := robot.PickMove(moves)
+	robot := NewHighScoreRobot()
+	state := game.State()
+	move := robot.GenerateMove(state)
 	if move != nil {
 		if !move.IsValid(game) {
 			t.Errorf("Invalid move generated")
@@ -350,13 +350,14 @@ func TestRobot(t *testing.T) {
 		}
 	}
 	// Construct a move from the player 0 rack
-	state := game.State()
+	// Obtain a fresh game state
+	state = game.State()
 	tiles := state.Rack.Extract(4, 'x')
 	if !game.MakeTileMove(5, 7, false, tiles) {
 		t.Errorf("Legal first move rejected")
 	}
-	moves = game.State().GenerateMoves()
-	move = robot.PickMove(moves)
+	state = game.State()
+	move = robot.GenerateMove(state)
 	if move != nil {
 		if !move.IsValid(game) {
 			t.Errorf("Invalid move generated")

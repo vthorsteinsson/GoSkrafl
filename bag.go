@@ -33,7 +33,10 @@ type Bag []Tile
 
 // TileSet is a static list of tiles, used as a prototype
 // to copy new Bags from
-type TileSet []Tile
+type TileSet struct {
+	Tiles  []Tile
+	Scores map[rune]int
+}
 
 // initTileSet makes a complete tile set, given a scoring map
 // and a map of letters and their associated counts
@@ -44,7 +47,7 @@ func initTileSet(scores map[rune]int, tiles map[rune]int) *TileSet {
 		numTiles += count
 	}
 	// Make a tile slice/array to hold the entire tile set
-	tileSet := make(TileSet, numTiles)
+	tileSet := make([]Tile, numTiles)
 	// Assign each tile in the tile set
 	i := 0
 	for letter, count := range tiles {
@@ -60,7 +63,7 @@ func initTileSet(scores map[rune]int, tiles map[rune]int) *TileSet {
 	if i != numTiles {
 		panic("Did not assign all tiles in tile set")
 	}
-	return &tileSet
+	return &TileSet{Tiles: tileSet, Scores: scores}
 }
 
 // initNewIcelandicTileSet creates the "new" Icelandic
@@ -100,8 +103,8 @@ var NewIcelandicTileSet = initNewIcelandicTileSet()
 // Initialize a bag from a tile set and return a reference to it
 func makeBag(tileSet *TileSet) *Bag {
 	// Make a fresh array for the bag and copy the tile set to it
-	bag := make(Bag, len(*tileSet))
-	copy(bag, *tileSet)
+	bag := make(Bag, len(tileSet.Tiles))
+	copy(bag, tileSet.Tiles)
 	// Shuffle the bag
 	rand.Shuffle(len(bag), func(i, j int) {
 		bag[i], bag[j] = bag[j], bag[i]
@@ -113,19 +116,22 @@ func makeBag(tileSet *TileSet) *Bag {
 // DrawTile pops one tile from the (randomized) bag
 // and returns it
 func (bag *Bag) DrawTile() *Tile {
-	if len(*bag) == 0 {
+	if bag == nil || len(*bag) == 0 {
 		// No tiles left in the bag
 		return nil
 	}
 	// We pop the last tile from the bag and return it
 	lenBag := len(*bag)
 	tile := &(*bag)[lenBag-1]
-	(*bag) = (*bag)[0 : lenBag-1]
+	*bag = (*bag)[0 : lenBag-1]
 	return tile
 }
 
 // String returns a string representation of a Bag
 func (bag *Bag) String() string {
+	if bag == nil {
+		return ""
+	}
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("(%v tiles): ", bag.TileCount()))
 	for i := 0; i < len(*bag); i++ {
@@ -136,5 +142,14 @@ func (bag *Bag) String() string {
 
 // TileCount returns the number of tiles in a Bag
 func (bag *Bag) TileCount() int {
+	if bag == nil {
+		return 0
+	}
 	return len(*bag)
+}
+
+// ExchangeAllowed returns true if there are at least RackSize
+// tiles left in the bag, thus allowing exchange of tiles
+func (bag *Bag) ExchangeAllowed() bool {
+	return bag != nil && len(*bag) >= RackSize
 }

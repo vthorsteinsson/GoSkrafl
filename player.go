@@ -87,6 +87,7 @@ package skrafl
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -428,14 +429,26 @@ func (ern *ExtendRightNavigator) Accept(matched string, final bool, state *navSt
 	// Legal move found: make a TileMove object for it and add to
 	// the move list
 	covers := make(Covers)
-	// TODO: fill inn covers
+	// Calculate the starting index within the axis
+	start := ern.index - len(runes)
+	// The original rack
+	rack := ern.axis.rackString
+	for i, meaning := range runes {
+		sq := ern.axis.sq[start+i]
+		if sq.Tile == nil {
+			letter := meaning
+			if strings.ContainsRune(rack, meaning) {
+				rack = strings.Replace(rack, string(meaning), "", 1)
+			} else {
+				// Must be using a blank tile
+				letter = '?'
+				rack = strings.Replace(rack, "?", "", 1)
+			}
+			covers[Coordinate{sq.Row, sq.Col}] = Cover{letter, meaning}
+		}
+	}
 	tileMove := NewTileMove(ern.axis.state.Board, covers)
 	ern.moves = append(ern.moves, tileMove)
-}
-
-// Robot selects a Move to play from a list of valid Moves, according
-// to its strategy
-type Robot struct {
 }
 
 // Axis stores information about a row or column on the board where
@@ -478,41 +491,43 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 		if index == BoardSize/2 && !horizontal {
 			axis.crossCheck[BoardSize/2] = rackSet
 		}
-	} else {
-		// Mark all empty squares having at least one occupied
-		// adjacent square as anchors
-		dawg := state.Dawg
-		alphabetLength := dawg.alphabet.Length()
-		for i := 0; i < BoardSize; i++ {
-			sq := axis.sq[i]
-			if sq.Tile == nil && board.NumAdjacentTiles(sq.Row, sq.Col) > 0 {
-				// This is an anchor square
-				crossSet := rackSet
-				// Check whether the cross word(s) limit the set of allowed
-				// letters in this anchor square
-				left, right := board.CrossWords(sq.Row, sq.Col, !horizontal)
-				lenLeft := len([]rune(left))
-				if lenLeft > 0 || len(right) > 0 {
-					// We ask the DAWG to find all words consisting of the
-					// left cross word + wildcard + right cross word,
-					// for instance 'f?lt' if the left word is 'f' and the
-					// right one is 'lt' - yielding the result set
-					// { 'falt', 'filt', fúlt' }, which we convert to the
-					// legal cross set of [ 'a', 'i', 'ú' ] and intersect
-					// that with the rack
-					matches := dawg.Match(left + "?" + right)
-					// Collect the 'middle' letters (the ones standing in
-					// for the wildcard)
-					runes := make([]rune, 0, alphabetLength)
-					for _, match := range matches {
-						runes = append(runes, ([]rune(match))[lenLeft])
-					}
-					// Intersect the set of allowed cross-check letters
-					// with the rack
-					crossSet &= dawg.alphabet.MakeSet(runes)
+		return
+	}
+	// Mark all empty squares having at least one occupied
+	// adjacent square as anchors
+	dawg := state.Dawg
+	alphabetLength := dawg.alphabet.Length()
+	for i := 0; i < BoardSize; i++ {
+		sq := axis.sq[i]
+		if sq.Tile == nil && board.NumAdjacentTiles(sq.Row, sq.Col) > 0 {
+			// This is a potential anchor square, if the rack allows
+			// placing any tiles there
+			crossSet := rackSet
+			// Check whether the cross word(s) limit the set of allowed
+			// letters in this anchor square
+			left, right := board.CrossWords(sq.Row, sq.Col, !horizontal)
+			lenLeft := len([]rune(left))
+			if lenLeft > 0 || right != "" {
+				// We ask the DAWG to find all words consisting of the
+				// left cross word + wildcard + right cross word,
+				// for instance 'f?lt' if the left word is 'f' and the
+				// right one is 'lt' - yielding the result set
+				// { 'falt', 'filt', fúlt' }, which we convert to the
+				// legal cross set of [ 'a', 'i', 'ú' ] and intersect
+				// that with the rack
+				matches := dawg.Match(left + "?" + right)
+				fmt.Printf("Cross-check match pattern for %v is %v\n", left+"?"+right, matches)
+				// Collect the 'middle' letters (the ones standing in
+				// for the wildcard)
+				runes := make([]rune, 0, alphabetLength)
+				for _, match := range matches {
+					runes = append(runes, ([]rune(match))[lenLeft])
 				}
-				axis.crossCheck[i] = crossSet
+				// Intersect the set of allowed cross-check letters
+				// with the rack
+				crossSet = crossSet & dawg.alphabet.MakeSet(runes)
 			}
+			axis.crossCheck[i] = crossSet
 		}
 	}
 }
@@ -670,20 +685,67 @@ func (state *GameState) GenerateMoves() []Move {
 	return moves
 }
 
-// Init initializes a fresh Robot instance
-func (robot *Robot) Init() {
+// Robot is an interface for automatic players that implement
+// a playing strategy to pick a move given a list of legal tile
+// moves
+type Robot interface {
+	PickMove(state *GameState, moves []Move) Move
 }
 
-// PickMove chooses a 'best' move to play from a list of legal moves,
-// in accordance with the Robot's strategy
-func (robot *Robot) PickMove([]Move) Move {
-	// TODO
-	return nil
+// RobotWrapper wraps a robot implementation
+type RobotWrapper struct {
+	Robot
 }
 
-// HighestScoreRobot returns an instance of a Robot playing with the
-// HighestScore strategy, i.e. one that always picks the
-// highest-scoring available move
-func HighestScoreRobot() *Robot {
-	return &Robot{}
+// GenerateMove generates a list of legal tile moves, then
+// asks the wrapped robot to pick one of them to play
+func (rw *RobotWrapper) GenerateMove(state *GameState) Move {
+	moves := state.GenerateMoves()
+	return rw.PickMove(state, moves)
+}
+
+// HighScoreRobot implements a simple strategy: it always picks
+// the highest-scoring move available, or exchanges all tiles
+// if there is no valid tile move, or passes if exchange is not
+// allowed.
+type HighScoreRobot struct {
+}
+
+// Implement a strategy for sorting move lists by score
+
+type byScore struct {
+	state *GameState
+	moves []Move
+}
+
+func (list byScore) Len() int {
+	return len(list.moves)
+}
+
+func (list byScore) Swap(i, j int) {
+	list.moves[i], list.moves[j] = list.moves[j], list.moves[i]
+}
+
+func (list byScore) Less(i, j int) bool {
+	// We want descending order, so we reverse the comparison
+	return list.moves[i].Score(list.state) > list.moves[j].Score(list.state)
+}
+
+// PickMove for a HighScoreRobot picks the highest scoring move available,
+// or an exchange move, or a pass move as a last resort
+func (robot *HighScoreRobot) PickMove(state *GameState, moves []Move) Move {
+	if len(moves) > 0 {
+		// Sort by score and return the highest scoring move
+		sort.Sort(byScore{state, moves})
+		return moves[0]
+	}
+	// No valid tile moves
+	// TODO: Make an exchange move, if possible
+	// Return a pass move
+	return NewPassMove()
+}
+
+// NewHighScoreRobot returns a fresh instance of a HighestScoreRobot
+func NewHighScoreRobot() *RobotWrapper {
+	return &RobotWrapper{&HighScoreRobot{}}
 }

@@ -25,7 +25,7 @@ package skrafl
 type Move interface {
 	IsValid(*Game) bool
 	Apply(*Game) bool
-	Score(*Game) int
+	Score(*GameState) int
 }
 
 // PassMove is a move that is always valid, has no effect when applied,
@@ -49,8 +49,12 @@ type Coordinate struct {
 }
 
 // Cover is a part of a TileMove, describing the covering of
-// a single Square by a Tile from the player's Rack
-type Cover *Tile
+// a single Square by a Letter. The Letter may be '?' indicating a
+// blank tile, in which case the Meaning gives its meaning.
+type Cover struct {
+	Letter  rune
+	Meaning rune
+}
 
 // Covers is a map of board coordinates to a tile covering
 type Covers map[Coordinate]Cover
@@ -178,7 +182,19 @@ func (move *TileMove) IsValid(game *Game) bool {
 // to the board Squares
 func (move *TileMove) Apply(game *Game) bool {
 	// The move is assumed to have already been validated via Move.IsValid()
-	for coord, tile := range move.Covers {
+	rack := &game.Racks[game.PlayerToMove()]
+	for coord, cover := range move.Covers {
+		// Find the tile in the player's rack
+		tile := rack.FindTile(cover.Letter)
+		if tile == nil {
+			// Not found: abort
+			return false
+		}
+		if cover.Letter == '?' {
+			tile.Meaning = cover.Meaning
+		} else {
+			tile.Meaning = cover.Letter
+		}
 		if !game.PlayTile(tile, coord.Row, coord.Col) {
 			// The tile was not found in the player's rack.
 			// This is not good as the move may have been only partially applied.
@@ -190,7 +206,7 @@ func (move *TileMove) Apply(game *Game) bool {
 
 // Score returns the score of the TileMove, if
 // played in the given Game
-func (move *TileMove) Score(game *Game) int {
+func (move *TileMove) Score(state *GameState) int {
 	if move.CachedScore != nil {
 		return *move.CachedScore
 	}
@@ -210,7 +226,7 @@ func (move *TileMove) Score(game *Game) int {
 	// Start with tiles above the top left
 	row, col := move.TopLeft.Row, move.TopLeft.Col
 	for {
-		sq := game.Board.Adjacents[row][col][direction]
+		sq := state.Board.Adjacents[row][col][direction]
 		if sq == nil || sq.Tile == nil {
 			break
 		}
@@ -223,15 +239,15 @@ func (move *TileMove) Score(game *Game) int {
 		if row > move.BottomRight.Row || col > move.BottomRight.Col {
 			break
 		}
-		sq := game.Board.Sq(row, col)
+		sq := state.Board.Sq(row, col)
 		if cover, covered := move.Covers[Coordinate{row, col}]; covered {
 			// This square is covered by the move: apply its letter
 			// and word multipliers
-			thisScore := cover.Score * sq.LetterMultiplier
+			thisScore := state.TileSet.Scores[cover.Letter] * sq.LetterMultiplier
 			score += thisScore
 			multiplier *= sq.WordMultiplier
 			// Add cross score, if any
-			hasCrossing, crossScore := game.Board.CrossScore(row, col, !move.Horizontal)
+			hasCrossing, crossScore := state.Board.CrossScore(row, col, !move.Horizontal)
 			if hasCrossing {
 				score += (crossScore + thisScore) * sq.WordMultiplier
 			}
@@ -250,7 +266,7 @@ func (move *TileMove) Score(game *Game) int {
 		direction = BELOW
 	}
 	for {
-		sq := game.Board.Adjacents[row][col][direction]
+		sq := state.Board.Adjacents[row][col][direction]
 		if sq == nil || sq.Tile == nil {
 			break
 		}
@@ -289,6 +305,6 @@ func (move *PassMove) Apply(game *Game) bool {
 }
 
 // Score is always 0 for a PassMove
-func (move *PassMove) Score(game *Game) int {
+func (move *PassMove) Score(state *GameState) int {
 	return 0
 }

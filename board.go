@@ -395,6 +395,18 @@ func (rack *Rack) HasTile(tile *Tile) bool {
 	return false
 }
 
+// FindTile finds a tile with the given letter (or '?') in the
+// rack and returns a pointer to it, or nil if not found
+func (rack *Rack) FindTile(letter rune) *Tile {
+	for i := 0; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		if sq.Tile != nil && sq.Tile.Letter == letter {
+			return sq.Tile
+		}
+	}
+	return nil
+}
+
 // RemoveTile removes a tile from a Rack
 func (rack *Rack) RemoveTile(tile *Tile) bool {
 	if tile == nil {

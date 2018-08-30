@@ -40,15 +40,22 @@ type Game struct {
 	MoveList    []Move
 	// The DAWG dictionary to use in the game
 	Dawg *Dawg
+	// The tile set to use in the game
+	TileSet *TileSet
 }
 
 // GameState contains the bare minimum of information
 // that is needed for a robot player to decide on a move
 // in a Game.
 type GameState struct {
-	Dawg  *Dawg
-	Board *Board
-	Rack  *Rack // The rack of the player whose move it is
+	Dawg    *Dawg
+	TileSet *TileSet
+	Board   *Board
+	// The rack of the player whose move it is
+	Rack *Rack
+	// If there are fewer than RackSize tiles in the bag,
+	// an exchange move is not allowed
+	exchangeForbidden bool
 }
 
 // Init initializes a new game with a fresh bag copied
@@ -58,6 +65,7 @@ func (game *Game) Init(tileSet *TileSet, dawg *Dawg) {
 	game.Board.Init()
 	game.Racks[0].Init()
 	game.Racks[1].Init()
+	game.TileSet = tileSet
 	game.Bag = makeBag(tileSet)
 	game.Racks[0].Fill(game.Bag)
 	game.Racks[1].Fill(game.Bag)
@@ -77,7 +85,13 @@ func NewIcelandicGame() *Game {
 // game in a minimal manner so that a robot player can decide on a move
 func (game *Game) State() *GameState {
 	player := game.PlayerToMove()
-	return &GameState{game.Dawg, &game.Board, &game.Racks[player]}
+	return &GameState{
+		Dawg:              game.Dawg,
+		TileSet:           game.TileSet,
+		Board:             &game.Board,
+		Rack:              &game.Racks[player],
+		exchangeForbidden: !game.Bag.ExchangeAllowed(),
+	}
 }
 
 // TileAt is a convenience function for returning the Tile at
@@ -181,7 +195,7 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 				return false
 			}
 		}
-		covers[Coordinate{row, col}] = tile
+		covers[Coordinate{row, col}] = Cover{tile.Letter, tile.Meaning}
 		row += rowInc
 		col += colInc
 	}
@@ -189,16 +203,16 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 	return game.Apply(NewTileMove(&game.Board, covers))
 }
 
-// Apply applies a move to the game, appends it to the
-// move list, replenishes the player's rack if needed,
-// and updates scores.
-func (game *Game) Apply(move Move) bool {
-	if !move.IsValid(game) || !move.Apply(game) {
-		// Not valid!
+// ApplyValid applies an already validated move to the game,
+// appends it to the move list, replenishes the player's rack
+// if needed, and updates scores.
+func (game *Game) ApplyValid(move Move) bool {
+	if !move.Apply(game) {
+		// Not valid! Should not happen...
 		return false
 	}
 	// Valid: calculate the score
-	score := move.Score(game)
+	score := move.Score(game.State())
 	// Be careful to call PlayerToMove() before appending
 	// a move to the move list (this reverses the players)
 	playerToMove := game.PlayerToMove()
@@ -209,6 +223,17 @@ func (game *Game) Apply(move Move) bool {
 	// Update the player's score
 	game.Scores[playerToMove] += score
 	return true
+}
+
+// Apply applies a move to the game, appends it to the
+// move list, replenishes the player's rack if needed,
+// and updates scores.
+func (game *Game) Apply(move Move) bool {
+	if !move.IsValid(game) {
+		// Not valid!
+		return false
+	}
+	return game.ApplyValid(move)
 }
 
 // String returns a string representation of a Game
@@ -226,14 +251,15 @@ func (game *Game) String() string {
 	sb.WriteString(fmt.Sprintf("Bag: %v\n", game.Bag))
 	// Show the move list, if present
 	if len(game.MoveList) > 0 {
+		state := game.State()
 		sb.WriteString("Moves:\n")
 		for i, m := range game.MoveList {
 			if i%2 == 0 {
 				// Left side player
-				sb.WriteString(fmt.Sprintf("  %2d: (%v) %v", (i/2)+1, m.Score(game), m))
+				sb.WriteString(fmt.Sprintf("  %2d: (%v) %v", (i/2)+1, m.Score(state), m))
 			} else {
 				// Right side player
-				sb.WriteString(fmt.Sprintf(" / %v (%v)\n", m, m.Score(game)))
+				sb.WriteString(fmt.Sprintf(" / %v (%v)\n", m, m.Score(state)))
 			}
 		}
 		if len(game.MoveList)%2 == 1 {
