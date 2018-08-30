@@ -186,7 +186,7 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 		col += colInc
 	}
 	// Apply a fresh TileMove to the game
-	return game.Apply(NewTileMove(game, covers))
+	return game.Apply(NewTileMove(&game.Board, covers))
 }
 
 // Apply applies a move to the game, appends it to the

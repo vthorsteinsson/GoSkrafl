@@ -1,6 +1,6 @@
 // player.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
-// This file implements a Scrabble(tm) playing robot.
+// This file implements a SCRABBLE(tm) playing robot.
 
 /*
 
@@ -16,6 +16,70 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+/*
+
+The code herein finds all legal moves on a SCRABBLE(tm)-like board.
+
+The algorithm is based on the classic paper by Appel & Jacobson,
+"The World's Fastest Scrabble Program",
+http://www.cs.cmu.edu/afs/cs/academic/class/15451-s06/www/lectures/scrabble.pdf
+
+The main function in this module is GameState.GenerateMoves(). Given
+a game state, comprising a Board, a Rack, and a vocabulary word graph
+(DAWG), it returns all legal tile moves.
+
+Moves are found by examining each one-dimensional Axis of the board
+in turn, i.e. 15 rows and 15 columns for a total of 30 axes.
+For each Axis an array of pointers to its corresponding Board Squares
+is constructed. The cross-check set of each empty Square is calculated,
+i.e. the set of letters that form valid words by connecting with word parts
+across the square's Axis. To save processing time, the cross-check sets
+are also intersected with the letters in the rack, unless the rack contains
+a blank tile.
+
+Any empty square with a non-null cross-check set or adjacent to
+a covered square within the axis is a potential anchor square.
+Each anchor square is examined in turn, from "left" to "right".
+The algorithm roughly proceeds as follows:
+
+1) Count the number of empty non-anchor squares to the left of
+	the anchor. Call the number 'maxleft'.
+2) Generate all permutations of rack tiles found by navigating
+	from the root of the DAWG, of length 1..maxleft, i.e. all
+	possible word beginnings from the rack. (We calculate these
+	permutation lists only once for the entire move generation
+	phase.)
+3) For each such permutation, attempt to complete the
+	word by placing the rest of the available tiles on the
+	anchor square and to its right.
+4) In any case, even if maxleft=0, place a starting tile on the
+	anchor square and attempt to complete a word to its right.
+5) When placing a tile on the anchor square or to its right,
+	do so under three constraints: (a) the cross-check
+	set of the square in question; (b) that there is
+	a path in the DAWG corresponding to the tiles that have
+	been laid down so far, incl. step 2 and 3; (c) a matching
+	tile is still available in the rack (with blank tiles always
+	matching).
+6) If extending to the right and coming to a tile that is
+	already on the board, it must correspond to the DAWG path
+	being followed.
+7) If we are running off the edge of the axis, or have come
+	to an empty square, and we are at a final node in the
+	DAWG indicating that a word is completed, we have a candidate
+	move. Calculate its score and add it to the list of potential
+	moves.
+
+Steps 1)-3) above are mostly implemented in the class LeftPartNavigator,
+while steps 4)-7) are found in ExtendRightNavigator. These classes
+correspond to the Appel & Jacobson LeftPart and ExtendRight functions.
+
+Note: SCRABBLE is a registered trademark. This software or its author
+are in no way affiliated with or endorsed by the owners or licensees
+of the SCRABBLE trademark.
 
 */
 
@@ -212,21 +276,181 @@ func (lpn *LeftPermutationNavigator) Accept(matched string, final bool, state *n
 	)
 }
 
-// Robot finds a Move to play in a Game according to its strategy
+// ExtendRightNavigator implements the core of the Appel-Jacobson
+// algorithm. It proceeds along an Axis, covering empty Squares with
+// Tiles from the Rack while obeying constraints from the Dawg and
+// the cross-check sets. As final nodes in the Dawg are encountered,
+// valid tile moves are generated and saved.
+type ExtendRightNavigator struct {
+	axis           *Axis
+	anchor         int
+	index          int
+	rack           string
+	stack          []ernItem
+	lastCheck      int
+	wildcardInRack bool
+	// The list of valid tile moves found
+	moves []Move
+}
+
+type ernItem struct {
+	rack           string
+	index          int
+	wildcardInRack bool
+}
+
+// Matching constants
+const (
+	mNo        = 1
+	mBoardTile = 2
+	mRackTile  = 3
+)
+
+// Init initializes a fresh ExtendRightNavigator for an axis, starting
+// from the given anchor, using the indicated rack
+func (ern *ExtendRightNavigator) Init(axis *Axis, anchor int, rack string) {
+	ern.axis = axis
+	ern.anchor = anchor
+	ern.index = anchor
+	ern.rack = rack
+	ern.stack = make([]ernItem, 0, RackSize)
+	ern.moves = make([]Move, 0)
+}
+
+func (ern *ExtendRightNavigator) check(letter rune) int {
+	tileAtSq := ern.axis.sq[ern.index].Tile
+	if tileAtSq != nil {
+		// There is a tile in the square: must match it exactly
+		if letter == tileAtSq.Letter {
+			// Matches, from the board
+			return mBoardTile
+		}
+		// Doesn't match the tile that is already there
+		return mNo
+	}
+	// Does the current rack allow this letter?
+	if !ern.wildcardInRack && !strings.ContainsRune(ern.rack, letter) {
+		// No, it doesn't
+		return mNo
+	}
+	// Finally, test the cross-checks
+	if ern.axis.Allows(ern.index, letter) {
+		// The tile successfully completes any cross-words
+		return mRackTile
+	}
+	return mNo
+}
+
+// PushEdge determines whether the navigation should proceed into
+// an edge having chr as its first letter
+func (ern *ExtendRightNavigator) PushEdge(letter rune) bool {
+	ern.lastCheck = ern.check(letter)
+	if ern.lastCheck == mNo {
+		// No way that this letter can be laid down here
+		return false
+	}
+	// Match: save our rack and our index and move into the edge
+	ern.stack = append(ern.stack, ernItem{ern.rack, ern.index, ern.wildcardInRack})
+	return true
+}
+
+// PopEdge returns false if there is no need to visit other edges
+// after this one has been traversed
+func (ern *ExtendRightNavigator) PopEdge() bool {
+	// Pop the previous rack and index from the stack
+	last := len(ern.stack) - 1
+	sp := &ern.stack[last]
+	ern.rack, ern.index, ern.wildcardInRack = sp.rack, sp.index, sp.wildcardInRack
+	ern.stack = ern.stack[0:last]
+	// We need to visit all outgoing edges, so return true
+	return true
+}
+
+// Done is called when the navigation is complete
+func (ern *ExtendRightNavigator) Done() {
+}
+
+// IsAccepting returns false if the navigator should not expect more
+// characters
+func (ern *ExtendRightNavigator) IsAccepting() bool {
+	if ern.index >= BoardSize {
+		// Gone off the board edge
+		return false
+	}
+	// Otherwise, continue while we have something on the rack
+	// or we're at an occupied square
+	return len(ern.rack) > 0 || ern.axis.sq[ern.index] != nil
+}
+
+// Accepts returns true if the navigator should accept and 'eat' the
+// given character
+func (ern *ExtendRightNavigator) Accepts(letter rune) bool {
+	// We are on the anchor square or to its right
+	match := ern.lastCheck
+	if match == 0 {
+		// No cached check available from PushEdge
+		match = ern.check(letter)
+	}
+	ern.lastCheck = 0
+	if match == mNo {
+		// No fit anymore: we're done with this edge
+		return false
+	}
+	// This letter is OK: accept it and remove from the rack if
+	// it came from there
+	ern.index++
+	if match == mRackTile {
+		if strings.ContainsRune(ern.rack, letter) {
+			// Used a normal tile
+			ern.rack = strings.Replace(ern.rack, string(letter), "", 1)
+		} else {
+			// Used a blank tile
+			ern.rack = strings.Replace(ern.rack, "?", "", 1)
+		}
+		ern.wildcardInRack = strings.ContainsRune(ern.rack, '?')
+	}
+	return true
+}
+
+// Accept is called to inform the navigator of a match and
+// whether it is a final word
+func (ern *ExtendRightNavigator) Accept(matched string, final bool, state *navState) {
+	if !final || (ern.index < BoardSize && ern.axis.sq[ern.index].Tile != nil) {
+		// Not a complete word, or ends on an occupied square:
+		// not a legal tile move
+		return
+	}
+	runes := []rune(matched)
+	if len(runes) < 2 {
+		// Less than 2 letters long: not a legal tile move
+		return
+	}
+	// Legal move found: make a TileMove object for it and add to
+	// the move list
+	covers := make(Covers)
+	// TODO: fill inn covers
+	tileMove := NewTileMove(ern.axis.state.Board, covers)
+	ern.moves = append(ern.moves, tileMove)
+}
+
+// Robot selects a Move to play from a list of valid Moves, according
+// to its strategy
 type Robot struct {
 }
 
 // Axis stores information about a row or column on the board where
-// the autoplayer is looking for valid moves
+// the robot player is looking for valid moves
 type Axis struct {
 	state      *GameState
 	horizontal bool
 	// A bitmap of the letters in the rack, having all bits set if
 	// the rack has a blank ('?') in it
 	rackSet uint
+	// rackString is the original rack, stored as a string
+	rackString string
 	// Array of convenience pointers to the board squares on this Axis
 	sq [BoardSize]*Square
-	// A bitmap of the letters that are allowed on this square,
+	// A bitmap of the letters that are allowed on each square,
 	// 0 if not an anchor square
 	crossCheck [BoardSize]uint
 }
@@ -237,6 +461,7 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 	axis.state = state
 	axis.rackSet = rackSet
 	axis.horizontal = horizontal
+	axis.rackString = state.Rack.AsString()
 	board := state.Board
 	// Build an array of pointers to the squares on this axis
 	for i := 0; i < BoardSize; i++ {
@@ -266,7 +491,7 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 				// Check whether the cross word(s) limit the set of allowed
 				// letters in this anchor square
 				left, right := board.CrossWords(sq.Row, sq.Col, !horizontal)
-				lenLeft := len(left)
+				lenLeft := len([]rune(left))
 				if lenLeft > 0 || len(right) > 0 {
 					// We ask the DAWG to find all words consisting of the
 					// left cross word + wildcard + right cross word,
@@ -290,6 +515,19 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 			}
 		}
 	}
+}
+
+// IsAnchor returns true if the given square within the Axis
+// is an anchor square
+func (axis *Axis) IsAnchor(index int) bool {
+	return axis.crossCheck[index] > 0
+}
+
+// Allows returns true if the given letter can be placed
+// in the indexed square within the Axis, in compliance
+// with the cross checks
+func (axis *Axis) Allows(index int, letter rune) bool {
+	return axis.state.Dawg.alphabet.Member(letter, axis.crossCheck[index])
 }
 
 // genMovesFromAnchor returns the available moves that use the given square
@@ -320,13 +558,13 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 		if lfn.state == nil {
 			// No matching prefix found: there cannot be any
 			// valid completions of the left part that is already
-			// there. Return a nil slice.
+			// there.
 			return nil
 		}
 		// We found a matching prefix in the graph:
 		// do an ExtendRight from that location, using the whole rack
 		var ern ExtendRightNavigator
-		ern.Init(anchor, axis.state.Rack)
+		ern.Init(axis, anchor, axis.rackString)
 		dawg.Resume(&ern, lfn.state, string(left))
 		// Return the move list accumulated by the ExtendRightNavigator
 		return ern.moves
@@ -336,7 +574,7 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 	// tiles on the anchor square itself and to its right
 	moves := make([]Move, 0)
 	var ern ExtendRightNavigator
-	ern.Init(anchor, axis.state.Rack)
+	ern.Init(axis, anchor, axis.rackString)
 	dawg.Navigate(&ern)
 	// Collect the moves found so far
 	moves = append(moves, ern.moves...)
@@ -347,7 +585,7 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 		leftList := leftParts[leftLen-1]
 		for _, leftPart := range leftList {
 			var ern ExtendRightNavigator
-			ern.Init(anchor, leftPart.rack)
+			ern.Init(axis, anchor, leftPart.rack)
 			dawg.Resume(&ern, leftPart.state, leftPart.matched)
 			moves = append(moves, ern.moves...)
 		}
@@ -368,7 +606,7 @@ func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
 	lastAnchor := -1
 	// Process the anchors, one by one, from left to right
 	for i := 0; i < BoardSize; i++ {
-		if axis.crossCheck[i] == 0 {
+		if !axis.IsAnchor(i) {
 			// This is not an anchor, or at least not a square that we
 			// can put a rack tile on
 			continue

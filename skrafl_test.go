@@ -190,7 +190,8 @@ func TestTileMove(t *testing.T) {
 		return tile
 	}
 	tile := grabTile(1, 0)
-	tileMove := NewTileMove(game,
+	board := &game.Board
+	tileMove := NewTileMove(board,
 		Covers{
 			{10, 8}: tile,
 		},
@@ -200,7 +201,7 @@ func TestTileMove(t *testing.T) {
 	}
 	// Make a non-contiguous move
 	tile2 := grabTile(1, 1)
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{10, 8}: tile,
 			{12, 8}: tile2,
@@ -210,7 +211,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted noncontiguous move")
 	}
 	// Make a non-linear move
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{5, 6}: tile,
 			{6, 8}: tile2,
@@ -220,7 +221,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted nonlinear move")
 	}
 	// Cover an already occupied square
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{5, 6}: tile,
 			{5, 7}: tile2,
@@ -234,12 +235,12 @@ func TestTileMove(t *testing.T) {
 	if game.Apply(tileMove) {
 		t.Errorf("Accepted empty move")
 	}
-	tileMove = NewTileMove(game, Covers{})
+	tileMove = NewTileMove(board, Covers{})
 	if game.Apply(tileMove) {
 		t.Errorf("Accepted empty move")
 	}
 	// Cover a nonexistent square
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{-1, 6}: tile,
 			{0, 6}:  tile2,
@@ -249,7 +250,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted cover of nonexistent square")
 	}
 	// Cover a nonexistent square
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{BoardSize - 1, 6}: tile,
 			{BoardSize, 6}:     tile2,
@@ -259,7 +260,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted cover of nonexistent square")
 	}
 	// Horizontal move
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{7, 4}:  tile,
 			{7, 10}: tile2,
@@ -273,7 +274,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Move is incorrectly identified as being vertical")
 	}
 	// Vertical move
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{7, 4}: tile,
 			{8, 4}: tile2,
@@ -286,7 +287,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Move is incorrectly identified as being horizontal")
 	}
 	// Single cover which creates a vertical move
-	tileMove = NewTileMove(game,
+	tileMove = NewTileMove(board,
 		Covers{
 			{8, 7}: tile,
 		},

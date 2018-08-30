@@ -61,9 +61,9 @@ const BingoBonus = 50
 
 // NewTileMove creates a new TileMove object with the given
 // Covers, i.e. Tile coverings
-func NewTileMove(game *Game, covers Covers) *TileMove {
+func NewTileMove(board *Board, covers Covers) *TileMove {
 	move := &TileMove{}
-	move.Init(game, covers)
+	move.Init(board, covers)
 	return move
 }
 
@@ -76,9 +76,9 @@ func (move *TileMove) String() string {
 	return colIds[move.TopLeft.Col] + rowIds[move.TopLeft.Row]
 }
 
-// Init initializes a TileMove instance for a particular Game
+// Init initializes a TileMove instance for a particular Board
 // using a map of Coordinate to Cover
-func (move *TileMove) Init(game *Game, covers Covers) {
+func (move *TileMove) Init(board *Board, covers Covers) {
 	move.Covers = covers
 	top, left := BoardSize, BoardSize
 	bottom, right := -1, -1
@@ -104,10 +104,10 @@ func (move *TileMove) Init(game *Game, covers Covers) {
 	} else {
 		// Single cover: get smart and figure out whether the
 		// horizontal cross is longer than the vertical cross
-		hcross := len(game.Board.Fragment(top, left, LEFT)) +
-			len(game.Board.Fragment(top, left, RIGHT))
-		vcross := len(game.Board.Fragment(top, left, ABOVE)) +
-			len(game.Board.Fragment(top, left, BELOW))
+		hcross := len(board.Fragment(top, left, LEFT)) +
+			len(board.Fragment(top, left, RIGHT))
+		vcross := len(board.Fragment(top, left, ABOVE)) +
+			len(board.Fragment(top, left, BELOW))
 		move.Horizontal = hcross >= vcross
 	}
 }
@@ -118,6 +118,7 @@ func (move *TileMove) IsValid(game *Game) bool {
 	if len(move.Covers) < 1 || len(move.Covers) > RackSize {
 		return false
 	}
+	board := game.Board
 	// Count the number of tiles adjacent to the covers
 	var numAdjacentTiles = 0
 	for coord := range move.Covers {
@@ -125,11 +126,11 @@ func (move *TileMove) IsValid(game *Game) bool {
 			coord.Col < 0 || coord.Col >= BoardSize {
 			return false
 		}
-		if game.TileAt(coord.Row, coord.Col) != nil {
+		if board.TileAt(coord.Row, coord.Col) != nil {
 			// There is already a tile in this square
 			return false
 		}
-		numAdjacentTiles += game.Board.NumAdjacentTiles(coord.Row, coord.Col)
+		numAdjacentTiles += board.NumAdjacentTiles(coord.Row, coord.Col)
 	}
 	if move.BottomRight.Row > move.TopLeft.Row &&
 		move.BottomRight.Col > move.TopLeft.Col {
@@ -142,7 +143,7 @@ func (move *TileMove) IsValid(game *Game) bool {
 		row := move.TopLeft.Row
 		for i := move.TopLeft.Col; i <= move.BottomRight.Col; i++ {
 			_, covered := move.Covers[Coordinate{row, i}]
-			if !covered && game.TileAt(row, i) == nil {
+			if !covered && board.TileAt(row, i) == nil {
 				// There is a missing square in the covers
 				return false
 			}
@@ -152,14 +153,14 @@ func (move *TileMove) IsValid(game *Game) bool {
 		col := move.TopLeft.Col
 		for i := move.TopLeft.Row; i <= move.BottomRight.Row; i++ {
 			_, covered := move.Covers[Coordinate{i, col}]
-			if !covered && game.TileAt(i, col) == nil {
+			if !covered && board.TileAt(i, col) == nil {
 				// There is a missing square in the covers
 				return false
 			}
 		}
 	}
 	// The first tile move must go through the center
-	if game.TilesOnBoard() == 0 {
+	if board.NumTiles == 0 {
 		if _, covered := move.Covers[Coordinate{BoardSize / 2, BoardSize / 2}]; !covered {
 			return false
 		}

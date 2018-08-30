@@ -149,6 +149,14 @@ func (board *Board) Sq(row, col int) *Square {
 	return &board.Squares[row][col]
 }
 
+// TileAt returns a pointer to the Tile in a given Square
+func (board *Board) TileAt(row, col int) *Tile {
+	if row < 0 || row >= BoardSize || col < 0 || col >= BoardSize {
+		return nil
+	}
+	return board.Squares[row][col].Tile
+}
+
 // String represents a Board as a string
 func (board *Board) String() string {
 	var sb strings.Builder
