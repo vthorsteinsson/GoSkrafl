@@ -40,6 +40,7 @@ type TileMove struct {
 	BottomRight Coordinate
 	Covers      Covers
 	Horizontal  bool
+	Word        string
 	CachedScore *int
 }
 
@@ -80,7 +81,7 @@ func (move *TileMove) String() string {
 	} else {
 		coord = colIds[move.TopLeft.Col] + rowIds[move.TopLeft.Row]
 	}
-	return coord
+	return coord + " " + move.Word
 }
 
 // Init initializes a TileMove instance for a particular Board
@@ -117,6 +118,41 @@ func (move *TileMove) Init(board *Board, covers Covers) {
 			len(board.Fragment(top, left, BELOW))
 		move.Horizontal = hcross >= vcross
 	}
+	// Collect the entire word that is being laid down
+	var direction, reverse int
+	if move.Horizontal {
+		direction = RIGHT
+		reverse = LEFT
+	} else {
+		direction = BELOW
+		reverse = ABOVE
+	}
+	// Start with any left prefix that is being extended
+	word := board.WordFragment(top, left, reverse)
+	// Next, traverse the covering line from top left to bottom right
+	sq := board.Sq(top, left)
+	for {
+		if cover, ok := covers[Coordinate{sq.Row, sq.Col}]; ok {
+			// This square is being covered by the tile move
+			word += string(cover.Meaning)
+		} else {
+			// This square must be covered by a previously laid tile
+			word += string(sq.Tile.Meaning)
+		}
+		if sq.Row == bottom && sq.Col == right {
+			// This was the last tile laid down in the move:
+			// the loop is done
+			break
+		}
+		// Move to the next adjacent square, in the direction of the move
+		sq = board.Adjacents[sq.Row][sq.Col][direction]
+		if sq == nil {
+			panic("TileMove unexpectedly runs off the board")
+		}
+	}
+	// Add any suffix that may already have been on the board
+	word += board.WordFragment(bottom, right, direction)
+	move.Word = word
 }
 
 // IsValid returns true if the TileMove is valid in the current Game
@@ -215,6 +251,8 @@ func (move *TileMove) Score(state *GameState) int {
 	}
 	// Cumulative letter score
 	var score = 0
+	// Cumulative cross scores
+	var crossScore = 0
 	// Word multiplier
 	var multiplier = 1
 	var rowIncr, colIncr = 0, 0
@@ -228,20 +266,11 @@ func (move *TileMove) Score(state *GameState) int {
 	}
 	// Start with tiles above the top left
 	row, col := move.TopLeft.Row, move.TopLeft.Col
-	for {
-		sq := state.Board.Adjacents[row][col][direction]
-		if sq == nil || sq.Tile == nil {
-			break
-		}
-		score += sq.Tile.Score
-		row, col = sq.Row, sq.Col
+	for _, tile := range state.Board.Fragment(row, col, direction) {
+		score += tile.Score
 	}
 	// Then, progress from the top left to the bottom right
-	row, col = move.TopLeft.Row, move.TopLeft.Col
 	for {
-		if row > move.BottomRight.Row || col > move.BottomRight.Col {
-			break
-		}
 		sq := state.Board.Sq(row, col)
 		if cover, covered := move.Covers[Coordinate{row, col}]; covered {
 			// This square is covered by the move: apply its letter
@@ -250,13 +279,16 @@ func (move *TileMove) Score(state *GameState) int {
 			score += thisScore
 			multiplier *= sq.WordMultiplier
 			// Add cross score, if any
-			hasCrossing, crossScore := state.Board.CrossScore(row, col, !move.Horizontal)
+			hasCrossing, csc := state.Board.CrossScore(row, col, !move.Horizontal)
 			if hasCrossing {
-				score += (crossScore + thisScore) * sq.WordMultiplier
+				crossScore += (csc + thisScore) * sq.WordMultiplier
 			}
 		} else {
 			// This square was already covered: add its letter score only
 			score += sq.Tile.Score
+		}
+		if row == move.BottomRight.Row && col == move.BottomRight.Col {
+			break
 		}
 		row += rowIncr
 		col += colIncr
@@ -268,16 +300,13 @@ func (move *TileMove) Score(state *GameState) int {
 	} else {
 		direction = BELOW
 	}
-	for {
-		sq := state.Board.Adjacents[row][col][direction]
-		if sq == nil || sq.Tile == nil {
-			break
-		}
-		score += sq.Tile.Score
-		row, col = sq.Row, sq.Col
+	for _, tile := range state.Board.Fragment(row, col, direction) {
+		score += tile.Score
 	}
 	// Multiply the accumulated letter score with the word multiplier
 	score *= multiplier
+	// Add cross scores
+	score += crossScore
 	if len(move.Covers) == RackSize {
 		// The player played his entire rack: add the bingo bonus
 		score += BingoBonus

@@ -209,6 +209,25 @@ func (board *Board) Fragment(row, col int, direction int) []*Tile {
 	return frag
 }
 
+// WordFragment returns the word formed by the tile sequence emanating
+// from the given square in the indicated direction, not including the
+// square itself.
+func (board *Board) WordFragment(row, col int, direction int) (result string) {
+	frag := board.Fragment(row, col, direction)
+	if direction == LEFT || direction == ABOVE {
+		// We need to reverse the order of the fragment
+		for _, tile := range frag {
+			result = string(tile.Meaning) + result
+		}
+	} else {
+		// The fragment is in correct reading order
+		for _, tile := range frag {
+			result += string(tile.Meaning)
+		}
+	}
+	return // result
+}
+
 // CrossScore returns the sum of the scores of the tiles crossing
 // the given tile, either horizontally or vertically. If there are no
 // crossings, returns false, 0. (Note that true, 0 is a valid return

@@ -25,6 +25,7 @@ package skrafl
 import (
 	"encoding/binary"
 	"fmt"
+	"go/build"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,7 +42,7 @@ import (
 // each Dawg node is traversed for the first time.
 // In practice, many nodes will never be traversed.
 type Dawg struct {
-	// The binary buffer containing the compressed DAWG
+	// The byte buffer containing the compressed DAWG
 	b []byte
 	// A mapping from alphabet indices, eventually having
 	// the high bit (0x80) set to indicate finality, to rune slices
@@ -295,11 +296,11 @@ type MatchNavigator struct {
 	index      int
 	chMatch    rune
 	isWildcard bool
-	stack      []matchTuple
+	stack      []matchItem
 	results    []string
 }
 
-type matchTuple struct {
+type matchItem struct {
 	index      int
 	chMatch    rune
 	isWildcard bool
@@ -312,8 +313,10 @@ func (mn *MatchNavigator) Init(pattern []rune) {
 	mn.lenP = len(mn.pattern)
 	mn.chMatch = mn.pattern[0]
 	mn.isWildcard = mn.chMatch == '?'
-	mn.stack = make([]matchTuple, 0, RackSize)
-	mn.results = make([]string, 0)
+	mn.stack = make([]matchItem, 0, RackSize)
+	// The initial capacity of the results list, 16, is just
+	// a guesstimate / magic number
+	mn.results = make([]string, 0, 16)
 }
 
 // PushEdge determines whether the navigation should proceed into
@@ -322,7 +325,7 @@ func (mn *MatchNavigator) PushEdge(chr rune) bool {
 	if chr != mn.chMatch && !mn.isWildcard {
 		return false
 	}
-	mn.stack = append(mn.stack, matchTuple{mn.index, mn.chMatch, mn.isWildcard})
+	mn.stack = append(mn.stack, matchItem{mn.index, mn.chMatch, mn.isWildcard})
 	return true
 }
 
@@ -374,12 +377,13 @@ func (mn *MatchNavigator) Accept(matched string, final bool, state *navState) {
 // Go starts a navigation on the underlying Dawg using the given
 // Navigator
 func (nav *Navigation) Go(dawg *Dawg, navigator Navigator) {
-	if dawg == nil || navigator == nil {
+	if nav == nil || dawg == nil || navigator == nil {
 		return
 	}
 	nav.dawg = dawg
 	nav.navigator = navigator
 	if navigator.IsAccepting() {
+		// Leave our home harbor and set sail for the open seas
 		nav.FromNode(0, "")
 	}
 	navigator.Done()
@@ -389,12 +393,13 @@ func (nav *Navigation) Go(dawg *Dawg, navigator Navigator) {
 // using the given Navigator, from a previously saved navigation
 // state
 func (nav *Navigation) Resume(dawg *Dawg, navigator Navigator, state *navState, matched string) {
-	if dawg == nil || navigator == nil {
+	if nav == nil || dawg == nil || navigator == nil || state == nil {
 		return
 	}
 	nav.dawg = dawg
 	nav.navigator = navigator
 	if navigator.IsAccepting() {
+		// Leave from our previously dropped buoy
 		nav.FromEdge(state, matched)
 	}
 	navigator.Done()
@@ -455,29 +460,41 @@ func (dawg *Dawg) iterNode(offset uint32) []navState {
 	return result
 }
 
-// FromNode continues a navigation from a node in the Dawg
+// FromNode continues a navigation from a node in the Dawg,
+// enumerating through outgoing edges until the navigator is
+// satisfied
 func (nav *Navigation) FromNode(offset uint32, matched string) {
 	iter := nav.dawg.iterNode(offset)
 	for i := 0; i < len(iter); i++ {
 		state := &iter[i]
 		if nav.navigator.PushEdge(state.prefix[0]) {
+			// The navigator wants us to enter this edge
 			nav.FromEdge(state, matched)
 			if !nav.navigator.PopEdge() {
+				// The navigator doesn't want to visit
+				// other edges, so we're done with this node
 				break
 			}
 		}
 	}
 }
 
-// FromEdge continues a navigation from an edge in the Dawg
+// FromEdge navigates along an edge in the Dawg. An edge
+// consists of a prefix string, which may be longer than
+// one letter.
 func (nav *Navigation) FromEdge(state *navState, matched string) {
 	lenP := len(state.prefix)
 	j := 0
 	navigator := nav.navigator
 	for j < lenP && navigator.IsAccepting() {
 		if !navigator.Accepts(state.prefix[j]) {
+			// The navigator doesn't want this prefix letter:
+			// we're done
 			return
 		}
+		// The navigator wants this prefix letter:
+		// add it to the matched prefix and find out whether
+		// it is now in a final state (i.e. an entire valid word)
 		matched += string(state.prefix[j])
 		j++
 		final := false
@@ -491,6 +508,7 @@ func (nav *Navigation) FromEdge(state *navState, matched string) {
 				final = true
 			}
 		}
+		// Notify the navigator of the match
 		if nav.isResumable {
 			// We want the full navigation state to be passed to navigator.Accept()
 			navigator.Accept(
@@ -504,6 +522,8 @@ func (nav *Navigation) FromEdge(state *navState, matched string) {
 		}
 	}
 	if j >= lenP && state.nextNode != 0 && navigator.IsAccepting() {
+		// Completed a whole prefix and still the navigator
+		// has appetite: continue to the following node
 		nav.FromNode(state.nextNode, matched)
 	}
 }
@@ -609,16 +629,13 @@ func (dawg *Dawg) MatchRunes(pattern []rune) []string {
 // skrafl module
 func makeDawg(fileName string, alphabet string) *Dawg {
 	dawg := &Dawg{}
-	goPath := os.ExpandEnv("${GOPATH}")
-	if goPath == "" {
-		goPath = os.ExpandEnv("${HOME}/go")
-	}
+	goPath := build.Default.GOPATH
+	// There should be a better way to do this?
 	path := goPath + "/src/github.com/vthorsteinsson/GoSkrafl/" + fileName
 	path = filepath.FromSlash(path)
 	err := dawg.Init(path, alphabet)
 	if err != nil {
-		panic("Unable to read DAWG file: " + path)
-		// return nil
+		panic(err)
 	}
 	return dawg
 }
