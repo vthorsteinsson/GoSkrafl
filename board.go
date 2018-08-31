@@ -395,6 +395,17 @@ func (rack *Rack) HasTile(tile *Tile) bool {
 	return false
 }
 
+// IsEmpty returns true if the Rack is empty
+func (rack *Rack) IsEmpty() bool {
+	for i := 0; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		if sq.Tile != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // FindTile finds a tile with the given letter (or '?') in the
 // rack and returns a pointer to it, or nil if not found
 func (rack *Rack) FindTile(letter rune) *Tile {

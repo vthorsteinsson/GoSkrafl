@@ -340,29 +340,20 @@ func TestRobot(t *testing.T) {
 	game := NewIcelandicGame()
 	game.SetPlayerNames("Villi", "Gopher")
 	robot := NewHighScoreRobot()
+	// Generate first move
 	state := game.State()
 	move := robot.GenerateMove(state)
-	if move != nil {
-		if !move.IsValid(game) {
-			t.Errorf("Invalid move generated")
-		} else {
-			move.Apply(game)
-		}
+	if move == nil || !move.IsValid(game) {
+		t.Errorf("Invalid move generated")
+	} else {
+		game.ApplyValid(move)
 	}
-	// Construct a move from the player 0 rack
-	// Obtain a fresh game state
-	state = game.State()
-	tiles := state.Rack.Extract(4, 'x')
-	if !game.MakeTileMove(5, 7, false, tiles) {
-		t.Errorf("Legal first move rejected")
-	}
+	// Generate response move
 	state = game.State()
 	move = robot.GenerateMove(state)
-	if move != nil {
-		if !move.IsValid(game) {
-			t.Errorf("Invalid move generated")
-		} else {
-			move.Apply(game)
-		}
+	if move == nil || !move.IsValid(game) {
+		t.Errorf("Invalid move generated")
+	} else {
+		game.ApplyValid(move)
 	}
 }

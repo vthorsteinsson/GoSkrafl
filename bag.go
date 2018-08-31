@@ -133,9 +133,13 @@ func (bag *Bag) String() string {
 		return ""
 	}
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("(%v tiles): ", bag.TileCount()))
-	for i := 0; i < len(*bag); i++ {
-		sb.WriteString(fmt.Sprintf("%v ", &(*bag)[i]))
+	if len(*bag) == 0 {
+		sb.WriteString("Empty")
+	} else {
+		sb.WriteString(fmt.Sprintf("(%v tiles): ", bag.TileCount()))
+		for i := 0; i < len(*bag); i++ {
+			sb.WriteString(fmt.Sprintf("%v ", &(*bag)[i]))
+		}
 	}
 	return sb.String()
 }

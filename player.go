@@ -1,6 +1,7 @@
 // player.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
-// This file implements a SCRABBLE(tm) playing robot.
+// This file implements a SCRABBLE(tm) playing robot,
+// and is a part of the Go 'skrafl' package.
 
 /*
 
@@ -46,7 +47,7 @@ Each anchor square is examined in turn, from "left" to "right".
 The algorithm roughly proceeds as follows:
 
 1) Count the number of empty non-anchor squares to the left of
-	the anchor. Call the number 'maxleft'.
+	the anchor, which may be zero. Call the number 'maxleft'.
 2) Generate all permutations of rack tiles found by navigating
 	from the root of the DAWG, of length 1..maxleft, i.e. all
 	possible word beginnings from the rack. (We calculate these
@@ -94,7 +95,7 @@ import (
 // LeftFindNavigator is similar to FindNavigator, but instead of returning
 // only a bool result, it returns the full navigation state as it is when
 // the requested word prefix is found. This makes it possible to continue the
-// navigation with further constraints.
+// navigation later with further constraints.
 type LeftFindNavigator struct {
 	prefix Prefix
 	lenP   int
@@ -314,6 +315,7 @@ func (ern *ExtendRightNavigator) Init(axis *Axis, anchor int, rack string) {
 	ern.anchor = anchor
 	ern.index = anchor
 	ern.rack = rack
+	ern.wildcardInRack = strings.ContainsRune(rack, '?')
 	ern.stack = make([]ernItem, 0, RackSize)
 	ern.moves = make([]Move, 0)
 }
@@ -337,6 +339,15 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 	// Finally, test the cross-checks
 	if ern.axis.Allows(ern.index, letter) {
 		// The tile successfully completes any cross-words
+		// !!! DEBUG
+		sq := ern.axis.sq[ern.index]
+		left, right := ern.axis.state.Board.CrossWords(sq.Row, sq.Col, !ern.axis.horizontal)
+		if left != "" || right != "" {
+			word := left + string(letter) + right
+			if !ern.axis.state.Dawg.Find(word) {
+				panic("Cross-check violation!")
+			}
+		}
 		return mRackTile
 	}
 	return mNo
@@ -416,7 +427,11 @@ func (ern *ExtendRightNavigator) Accepts(letter rune) bool {
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
 func (ern *ExtendRightNavigator) Accept(matched string, final bool, state *navState) {
-	if !final || (ern.index < BoardSize && ern.axis.sq[ern.index].Tile != nil) {
+	if state != nil {
+		panic("ExtendRightNavigator should not be resumable")
+	}
+	if !final ||
+		(ern.index < BoardSize && ern.axis.sq[ern.index].Tile != nil) {
 		// Not a complete word, or ends on an occupied square:
 		// not a legal tile move
 		return
@@ -464,8 +479,11 @@ type Axis struct {
 	// Array of convenience pointers to the board squares on this Axis
 	sq [BoardSize]*Square
 	// A bitmap of the letters that are allowed on each square,
-	// 0 if not an anchor square
+	// intersected with the current rack
 	crossCheck [BoardSize]uint
+	// A boolean for each square indicating whether it is an anchor
+	// square
+	isAnchor [BoardSize]bool
 }
 
 // Init initializes a fresh Axis object, associating it with a board
@@ -484,24 +502,36 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 			axis.sq[i] = board.Sq(i, index)
 		}
 	}
-	if board.NumTiles == 0 {
-		// If no tile has yet been placed on the board,
-		// mark the center square of the center column as an anchor
-		// by setting its crossCheck set to allow the entire rack
-		if index == BoardSize/2 && !horizontal {
-			axis.crossCheck[BoardSize/2] = rackSet
-		}
-		return
-	}
 	// Mark all empty squares having at least one occupied
 	// adjacent square as anchors
 	dawg := state.Dawg
 	alphabetLength := dawg.alphabet.Length()
 	for i := 0; i < BoardSize; i++ {
 		sq := axis.sq[i]
-		if sq.Tile == nil && board.NumAdjacentTiles(sq.Row, sq.Col) > 0 {
-			// This is a potential anchor square, if the rack allows
-			// placing any tiles there
+		if sq.Tile != nil {
+			// Already have a tile here: not an anchor and no
+			// cross-check set needed
+			continue
+		}
+		var isAnchor bool
+		if board.NumTiles == 0 {
+			// Special case:
+			// If no tile has yet been placed on the board,
+			// mark the center square of the center column as an anchor
+			isAnchor = (index == BoardSize/2) && (i == BoardSize/2) && !horizontal
+		} else {
+			isAnchor = board.NumAdjacentTiles(sq.Row, sq.Col) > 0
+		}
+		if !isAnchor {
+			// Empty square with no adjacent tiles: not an anchor,
+			// and we can place any letter from the rack here
+			axis.crossCheck[i] = rackSet
+		} else {
+			// This is an anchor square, i.e. an empty square with
+			// at least one adjacent tile. Note, however, that the
+			// cross-check set for it may be zero, if no tile from
+			// the rack can be placed in it due to cross-words.
+			axis.isAnchor[i] = true
 			crossSet := rackSet
 			// Check whether the cross word(s) limit the set of allowed
 			// letters in this anchor square
@@ -516,16 +546,27 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 				// legal cross set of [ 'a', 'i', 'ú' ] and intersect
 				// that with the rack
 				matches := dawg.Match(left + "?" + right)
-				fmt.Printf("Cross-check match pattern for %v is %v\n", left+"?"+right, matches)
 				// Collect the 'middle' letters (the ones standing in
 				// for the wildcard)
 				runes := make([]rune, 0, alphabetLength)
 				for _, match := range matches {
-					runes = append(runes, ([]rune(match))[lenLeft])
+					rMatch := []rune(match)
+					runes = append(runes, rMatch[lenLeft])
 				}
 				// Intersect the set of allowed cross-check letters
 				// with the rack
-				crossSet = crossSet & dawg.alphabet.MakeSet(runes)
+				/*
+					var horiz string
+					if horizontal {
+						horiz = "horizontal"
+					} else {
+						horiz = "vertical"
+					}
+					fmt.Printf("Cross-check at %v axis %v match pattern for %v is %v; result set is %v\n",
+						horiz, index,
+						left+"?"+right, matches, string(runes))
+				*/
+				crossSet &= dawg.alphabet.MakeSet(runes)
 			}
 			axis.crossCheck[i] = crossSet
 		}
@@ -535,13 +576,23 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 // IsAnchor returns true if the given square within the Axis
 // is an anchor square
 func (axis *Axis) IsAnchor(index int) bool {
-	return axis.crossCheck[index] > 0
+	return axis.isAnchor[index]
+}
+
+// IsOpen returns true if the given square within the Axis
+// is open for a new Tile from the Rack
+func (axis *Axis) IsOpen(index int) bool {
+	return axis.sq[index].Tile == nil && axis.crossCheck[index] > 0
 }
 
 // Allows returns true if the given letter can be placed
 // in the indexed square within the Axis, in compliance
 // with the cross checks
 func (axis *Axis) Allows(index int, letter rune) bool {
+	if axis == nil || axis.sq[index].Tile != nil {
+		// We already have a tile in this square
+		return false
+	}
 	return axis.state.Dawg.alphabet.Member(letter, axis.crossCheck[index])
 }
 
@@ -550,15 +601,17 @@ func (axis *Axis) Allows(index int, letter rune) bool {
 func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*LeftPart) []Move {
 	dawg, board := axis.state.Dawg, axis.state.Board
 	sq := axis.sq[anchor]
-	var direction int
-	if axis.horizontal {
-		direction = LEFT
-	} else {
-		direction = ABOVE
-	}
-	if maxLeft == 0 && anchor > 0 && axis.sq[anchor-1].Tile == nil {
-		// We have a left part already on the board: try to complete it
-		// Get the left part, as a list of Tiles
+
+	// Do we have a left part already on the board?
+	if maxLeft == 0 && anchor > 0 && axis.sq[anchor-1].Tile != nil {
+		// Yes: try to complete it
+		var direction int
+		if axis.horizontal {
+			direction = LEFT
+		} else {
+			direction = ABOVE
+		}
+		// Get the entire left part, as a list of Tiles
 		fragment := board.Fragment(sq.Row, sq.Col, direction)
 		// The fragment list is backwards; convert it to a proper Prefix,
 		// which is a list of runes
@@ -584,6 +637,7 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 		// Return the move list accumulated by the ExtendRightNavigator
 		return ern.moves
 	}
+
 	// We are not completing an existing left part
 	// Begin by extending an empty prefix to the right, i.e. placing
 	// tiles on the anchor square itself and to its right
@@ -595,8 +649,9 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 	moves = append(moves, ern.moves...)
 
 	// Follow this by an effort to permute left prefixes into the
-	// open space to the left of the anchor square
+	// open space to the left of the anchor square, if any
 	for leftLen := 1; leftLen <= maxLeft; leftLen++ {
+		// Try all left prefixes of length leftLen
 		leftList := leftParts[leftLen-1]
 		for _, leftPart := range leftList {
 			var ern ExtendRightNavigator
@@ -605,6 +660,8 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 			moves = append(moves, ern.moves...)
 		}
 	}
+
+	// Return the accumulated move list
 	return moves
 }
 
@@ -622,21 +679,25 @@ func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
 	// Process the anchors, one by one, from left to right
 	for i := 0; i < BoardSize; i++ {
 		if !axis.IsAnchor(i) {
-			// This is not an anchor, or at least not a square that we
-			// can put a rack tile on
 			continue
 		}
-		// This is an anchor square: count open squares to its left,
-		// up to but not including the previous anchor, if any
-		openCnt := 0
-		left := i
-		for left > 0 && left > (lastAnchor+1) && axis.sq[left-1].Tile == nil {
-			openCnt++
-			left--
+		// This is an anchor
+		if axis.crossCheck[i] > 0 {
+			// A tile from the rack can actually be placed here:
+			// count open squares to the anchor's left,
+			// up to but not including the previous anchor, if any.
+			// Open squares are squares that are empty and can
+			// accept a tile from the rack.
+			openCnt := 0
+			left := i
+			for left > 0 && left > (lastAnchor+1) && axis.IsOpen(left-1) {
+				openCnt++
+				left--
+			}
+			moves = append(moves,
+				axis.genMovesFromAnchor(i, min(openCnt, lenRack-1), leftParts)...,
+			)
 		}
-		moves = append(moves,
-			axis.genMovesFromAnchor(i, min(openCnt, lenRack-1), leftParts)...,
-		)
 		lastAnchor = i
 	}
 	return moves
@@ -687,12 +748,12 @@ func (state *GameState) GenerateMoves() []Move {
 
 // Robot is an interface for automatic players that implement
 // a playing strategy to pick a move given a list of legal tile
-// moves
+// moves.
 type Robot interface {
 	PickMove(state *GameState, moves []Move) Move
 }
 
-// RobotWrapper wraps a robot implementation
+// RobotWrapper wraps a Robot implementation
 type RobotWrapper struct {
 	Robot
 }

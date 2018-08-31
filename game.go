@@ -236,6 +236,24 @@ func (game *Game) Apply(move Move) bool {
 	return game.ApplyValid(move)
 }
 
+// IsOver returns true if the Game is over after the last
+// move played
+func (game *Game) IsOver() bool {
+	ix := len(game.MoveList)
+	if ix == 0 {
+		// No moves yet: cannot be over
+		return false
+	}
+	// TODO: Check for resignation
+	// TODO: Check for three rounds of no tile moves
+	lastPlayer := 1 - (ix % 2)
+	if game.Racks[lastPlayer].IsEmpty() {
+		// The last player's move emptied her rack
+		return true
+	}
+	return false
+}
+
 // String returns a string representation of a Game
 func (game *Game) String() string {
 	var sb strings.Builder
