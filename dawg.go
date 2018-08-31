@@ -611,7 +611,7 @@ func makeDawg(fileName string, alphabet string) *Dawg {
 	dawg := &Dawg{}
 	goPath := os.ExpandEnv("${GOPATH}")
 	if goPath == "" {
-		goPath = os.ExpandEnv("{$HOME}/go")
+		goPath = os.ExpandEnv("${HOME}/go")
 	}
 	path := goPath + "/src/github.com/vthorsteinsson/GoSkrafl/" + fileName
 	path = filepath.FromSlash(path)
