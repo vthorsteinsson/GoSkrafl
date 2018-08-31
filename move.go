@@ -74,10 +74,13 @@ func NewTileMove(board *Board, covers Covers) *TileMove {
 // String return a string description of a TileMove
 func (move *TileMove) String() string {
 	// TODO: This returns only the coordinates of the move
+	var coord string
 	if move.Horizontal {
-		return rowIds[move.TopLeft.Row] + colIds[move.TopLeft.Col]
+		coord = rowIds[move.TopLeft.Row] + colIds[move.TopLeft.Col]
+	} else {
+		coord = colIds[move.TopLeft.Col] + rowIds[move.TopLeft.Row]
 	}
-	return colIds[move.TopLeft.Col] + rowIds[move.TopLeft.Row]
+	return coord
 }
 
 // Init initializes a TileMove instance for a particular Board

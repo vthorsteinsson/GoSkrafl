@@ -339,7 +339,8 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 	// Finally, test the cross-checks
 	if ern.axis.Allows(ern.index, letter) {
 		// The tile successfully completes any cross-words
-		// !!! DEBUG
+		/*
+		// DEBUG: verify that the cross-checks hold
 		sq := ern.axis.sq[ern.index]
 		left, right := ern.axis.state.Board.CrossWords(sq.Row, sq.Col, !ern.axis.horizontal)
 		if left != "" || right != "" {
@@ -348,6 +349,7 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 				panic("Cross-check violation!")
 			}
 		}
+		*/
 		return mRackTile
 	}
 	return mNo
