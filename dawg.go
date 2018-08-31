@@ -609,11 +609,16 @@ func (dawg *Dawg) MatchRunes(pattern []rune) []string {
 // skrafl module
 func makeDawg(fileName string, alphabet string) *Dawg {
 	dawg := &Dawg{}
-	path := os.ExpandEnv("${GOPATH}/src/github.com/vthorsteinsson/GoSkrafl/" + fileName)
+	goPath := os.ExpandEnv("${GOPATH}")
+	if goPath == "" {
+		goPath = os.ExpandEnv("{$HOME}/go")
+	}
+	path := goPath + "/src/github.com/vthorsteinsson/GoSkrafl/" + fileName
 	path = filepath.FromSlash(path)
 	err := dawg.Init(path, alphabet)
 	if err != nil {
-		return nil
+		panic("Unable to read DAWG file: " + path)
+		// return nil
 	}
 	return dawg
 }

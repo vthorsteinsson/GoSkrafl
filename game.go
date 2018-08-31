@@ -76,6 +76,10 @@ func (game *Game) Init(tileSet *TileSet, dawg *Dawg) {
 // NewIcelandicGame instantiates a new Game with the Icelandic TileSet
 // and returns a reference to it
 func NewIcelandicGame() *Game {
+	if IcelandicDictionary == nil {
+		// Unable to read Icelandic DAWG
+		return nil
+	}
 	game := &Game{}
 	game.Init(NewIcelandicTileSet, IcelandicDictionary)
 	return game

@@ -112,6 +112,9 @@ func BenchmarkDawg(b *testing.B) {
 
 func TestTileMove(t *testing.T) {
 	game := NewIcelandicGame()
+	if game == nil {
+		t.Errorf("Unable to create a new Icelandic game")
+	}
 	game.SetPlayerNames("Villi", "Gopher")
 	// Construct a move from the player 0 rack
 	move := game.Racks[0].Extract(4, 'x')
@@ -303,6 +306,9 @@ func TestTileMove(t *testing.T) {
 func TestFindLeftParts(t *testing.T) {
 	// Find left parts
 	game := NewIcelandicGame()
+	if game == nil {
+		t.Errorf("Unable to create a new Icelandic game")
+	}
 	leftParts := FindLeftParts(game.Dawg, game.Racks[game.PlayerToMove()].AsString())
 	_ = leftParts
 }
@@ -333,11 +339,17 @@ func TestBitMaps(t *testing.T) {
 func TestStringify(t *testing.T) {
 	// Stringify the game (no test but at least this enhances coverage)
 	game := NewIcelandicGame()
+	if game == nil {
+		t.Errorf("Unable to create a new Icelandic game")
+	}
 	_ = game.String()
 }
 
 func TestRobot(t *testing.T) {
 	game := NewIcelandicGame()
+	if game == nil {
+		t.Errorf("Unable to create a new Icelandic game")
+	}
 	game.SetPlayerNames("Villi", "Gopher")
 	robot := NewHighScoreRobot()
 	// Generate first move
