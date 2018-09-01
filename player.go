@@ -340,15 +340,15 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 	if ern.axis.Allows(ern.index, letter) {
 		// The tile successfully completes any cross-words
 		/*
-		// DEBUG: verify that the cross-checks hold
-		sq := ern.axis.sq[ern.index]
-		left, right := ern.axis.state.Board.CrossWords(sq.Row, sq.Col, !ern.axis.horizontal)
-		if left != "" || right != "" {
-			word := left + string(letter) + right
-			if !ern.axis.state.Dawg.Find(word) {
-				panic("Cross-check violation!")
+			// DEBUG: verify that the cross-checks hold
+			sq := ern.axis.sq[ern.index]
+			left, right := ern.axis.state.Board.CrossWords(sq.Row, sq.Col, !ern.axis.horizontal)
+			if left != "" || right != "" {
+				word := left + string(letter) + right
+				if !ern.axis.state.Dawg.Find(word) {
+					panic("Cross-check violation!")
+				}
 			}
-		}
 		*/
 		return mRackTile
 	}
@@ -506,8 +506,6 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 	}
 	// Mark all empty squares having at least one occupied
 	// adjacent square as anchors
-	dawg := state.Dawg
-	alphabetLength := dawg.alphabet.Length()
 	for i := 0; i < BoardSize; i++ {
 		sq := axis.sq[i]
 		if sq.Tile != nil {
@@ -534,45 +532,39 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 			// cross-check set for it may be zero, if no tile from
 			// the rack can be placed in it due to cross-words.
 			axis.isAnchor[i] = true
-			crossSet := rackSet
-			// Check whether the cross word(s) limit the set of allowed
-			// letters in this anchor square
-			left, right := board.CrossWords(sq.Row, sq.Col, !horizontal)
-			lenLeft := len([]rune(left))
-			if lenLeft > 0 || right != "" {
-				// We ask the DAWG to find all words consisting of the
-				// left cross word + wildcard + right cross word,
-				// for instance 'f?lt' if the left word is 'f' and the
-				// right one is 'lt' - yielding the result set
-				// { 'falt', 'filt', fúlt' }, which we convert to the
-				// legal cross set of [ 'a', 'i', 'ú' ] and intersect
-				// that with the rack
-				matches := dawg.Match(left + "?" + right)
-				// Collect the 'middle' letters (the ones standing in
-				// for the wildcard)
-				runes := make([]rune, 0, alphabetLength)
-				for _, match := range matches {
-					rMatch := []rune(match)
-					runes = append(runes, rMatch[lenLeft])
-				}
-				// Intersect the set of allowed cross-check letters
-				// with the rack
-				/*
-					var horiz string
-					if horizontal {
-						horiz = "horizontal"
-					} else {
-						horiz = "vertical"
-					}
-					fmt.Printf("Cross-check at %v axis %v match pattern for %v is %v; result set is %v\n",
-						horiz, index,
-						left+"?"+right, matches, string(runes))
-				*/
-				crossSet &= dawg.alphabet.MakeSet(runes)
-			}
-			axis.crossCheck[i] = crossSet
+			axis.crossCheck[i] = rackSet & axis.crossSet(sq)
 		}
 	}
+}
+
+func (axis *Axis) crossSet(sq *Square) uint {
+	// Check whether the cross word(s) limit the set of allowed
+	// letters in this anchor square
+	left, right := axis.state.Board.CrossWords(sq.Row, sq.Col, !axis.horizontal)
+	lenLeft := len([]rune(left))
+	if lenLeft == 0 && right == "" {
+		// No cross word, so no cross check constraint
+		return ^uint(0)
+	}
+	dawg := axis.state.Dawg
+	alphabetLength := dawg.alphabet.Length()
+	// We ask the DAWG to find all words consisting of the
+	// left cross word + wildcard + right cross word,
+	// for instance 'f?lt' if the left word is 'f' and the
+	// right one is 'lt' - yielding the result set
+	// { 'falt', 'filt', fúlt' }, which we convert to the
+	// legal cross set of [ 'a', 'i', 'ú' ] and intersect
+	// that with the rack
+	matches := dawg.Match(left + "?" + right)
+	// Collect the 'middle' letters (the ones standing in
+	// for the wildcard)
+	runes := make([]rune, 0, alphabetLength)
+	for _, match := range matches {
+		rMatch := []rune(match)
+		runes = append(runes, rMatch[lenLeft])
+	}
+	// Return the resulting bitmapped set
+	return dawg.alphabet.MakeSet(runes)
 }
 
 // IsAnchor returns true if the given square within the Axis
