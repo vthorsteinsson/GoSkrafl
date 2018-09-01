@@ -345,6 +345,28 @@ func TestStringify(t *testing.T) {
 	_ = game.String()
 }
 
+func BenchmarkRobot(b *testing.B) {
+
+	// Generate a sequence of moves and responses
+	simulateGame := func(robot *RobotWrapper) {
+		game := NewIcelandicGame()
+		game.SetPlayerNames("Villi", "Gopher")
+		for {
+			state := game.State()
+			move := robot.GenerateMove(state)
+			game.ApplyValid(move)
+			if game.IsOver() {
+				break
+			}
+		}
+	}
+
+	robot := NewHighScoreRobot()
+	for i := 0; i < b.N; i++ {
+		simulateGame(robot)
+	}
+}
+
 func TestRobot(t *testing.T) {
 	robot := NewHighScoreRobot()
 	if robot == nil {

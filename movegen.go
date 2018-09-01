@@ -1,7 +1,8 @@
-// player.go
+// movegen.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
-// This file implements a SCRABBLE(tm) playing robot,
-// and is a part of the Go 'skrafl' package.
+// This file contains code to generate all valid tile moves
+// on a SCRABBLE(tm) board, given a player's rack.
+// It is a part of the Go 'skrafl' package.
 
 /*
 
@@ -88,7 +89,6 @@ package skrafl
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -205,7 +205,13 @@ func (lpn *LeftPermutationNavigator) Init(rack string) {
 	// the rest is available to be played to the left of the anchor.
 	// We thus find all permutations involving all rack tiles except
 	// one.
-	lpn.maxLeft = len([]rune(rack)) - 1
+	lenRack := len([]rune(rack))
+	if lenRack <= 1 {
+		// No left permutation possible
+		lpn.maxLeft = 0
+	} else {
+		lpn.maxLeft = lenRack - 1
+	}
 	lpn.stack = make([]leftPermItem, 0)
 	lpn.leftParts = make([][]*LeftPart, lpn.maxLeft, lpn.maxLeft)
 	for i := 0; i < lpn.maxLeft; i++ {
@@ -541,30 +547,11 @@ func (axis *Axis) crossSet(sq *Square) uint {
 	// Check whether the cross word(s) limit the set of allowed
 	// letters in this anchor square
 	left, right := axis.state.Board.CrossWords(sq.Row, sq.Col, !axis.horizontal)
-	lenLeft := len([]rune(left))
-	if lenLeft == 0 && right == "" {
+	if len(left) == 0 && len(right) == 0 {
 		// No cross word, so no cross check constraint
 		return ^uint(0)
 	}
-	dawg := axis.state.Dawg
-	alphabetLength := dawg.alphabet.Length()
-	// We ask the DAWG to find all words consisting of the
-	// left cross word + wildcard + right cross word,
-	// for instance 'f?lt' if the left word is 'f' and the
-	// right one is 'lt' - yielding the result set
-	// { 'falt', 'filt', fúlt' }, which we convert to the
-	// legal cross set of [ 'a', 'i', 'ú' ] and intersect
-	// that with the rack
-	matches := dawg.Match(left + "?" + right)
-	// Collect the 'middle' letters (the ones standing in
-	// for the wildcard)
-	runes := make([]rune, 0, alphabetLength)
-	for _, match := range matches {
-		rMatch := []rune(match)
-		runes = append(runes, rMatch[lenLeft])
-	}
-	// Return the resulting bitmapped set
-	return dawg.alphabet.MakeSet(runes)
+	return axis.state.Dawg.CrossSet(left, right)
 }
 
 // IsAnchor returns true if the given square within the Axis
@@ -738,69 +725,4 @@ func (state *GameState) GenerateMoves() []Move {
 	// All goroutines have returned and we have a complete list
 	// of generated moves
 	return moves
-}
-
-// Robot is an interface for automatic players that implement
-// a playing strategy to pick a move given a list of legal tile
-// moves.
-type Robot interface {
-	PickMove(state *GameState, moves []Move) Move
-}
-
-// RobotWrapper wraps a Robot implementation
-type RobotWrapper struct {
-	Robot
-}
-
-// GenerateMove generates a list of legal tile moves, then
-// asks the wrapped robot to pick one of them to play
-func (rw *RobotWrapper) GenerateMove(state *GameState) Move {
-	moves := state.GenerateMoves()
-	return rw.PickMove(state, moves)
-}
-
-// HighScoreRobot implements a simple strategy: it always picks
-// the highest-scoring move available, or exchanges all tiles
-// if there is no valid tile move, or passes if exchange is not
-// allowed.
-type HighScoreRobot struct {
-}
-
-// Implement a strategy for sorting move lists by score
-
-type byScore struct {
-	state *GameState
-	moves []Move
-}
-
-func (list byScore) Len() int {
-	return len(list.moves)
-}
-
-func (list byScore) Swap(i, j int) {
-	list.moves[i], list.moves[j] = list.moves[j], list.moves[i]
-}
-
-func (list byScore) Less(i, j int) bool {
-	// We want descending order, so we reverse the comparison
-	return list.moves[i].Score(list.state) > list.moves[j].Score(list.state)
-}
-
-// PickMove for a HighScoreRobot picks the highest scoring move available,
-// or an exchange move, or a pass move as a last resort
-func (robot *HighScoreRobot) PickMove(state *GameState, moves []Move) Move {
-	if len(moves) > 0 {
-		// Sort by score and return the highest scoring move
-		sort.Sort(byScore{state, moves})
-		return moves[0]
-	}
-	// No valid tile moves
-	// TODO: Make an exchange move, if possible
-	// Return a pass move
-	return NewPassMove()
-}
-
-// NewHighScoreRobot returns a fresh instance of a HighestScoreRobot
-func NewHighScoreRobot() *RobotWrapper {
-	return &RobotWrapper{&HighScoreRobot{}}
 }

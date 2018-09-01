@@ -252,6 +252,8 @@ func (move *TileMove) Apply(game *Game) bool {
 			return false
 		}
 	}
+	// Reset the counter of consecutive zero-point moves
+	game.NumPassMoves = 0
 	return true
 }
 
@@ -284,6 +286,9 @@ func (move *TileMove) Score(state *GameState) int {
 	// Then, progress from the top left to the bottom right
 	for {
 		sq := state.Board.Sq(row, col)
+		if sq == nil {
+			break
+		}
 		if cover, covered := move.Covers[Coordinate{row, col}]; covered {
 			// This square is covered by the move: apply its letter
 			// and word multipliers
@@ -299,7 +304,7 @@ func (move *TileMove) Score(state *GameState) int {
 			// This square was already covered: add its letter score only
 			score += sq.Tile.Score
 		}
-		if row == move.BottomRight.Row && col == move.BottomRight.Col {
+		if row >= move.BottomRight.Row && col >= move.BottomRight.Col {
 			break
 		}
 		row += rowIncr
@@ -345,6 +350,8 @@ func (move *PassMove) IsValid(game *Game) bool {
 
 // Apply always succeeds and returns true for a PassMove
 func (move *PassMove) Apply(game *Game) bool {
+	// Increment the number of consecutive zero-point moves
+	game.NumPassMoves++
 	return true
 }
 

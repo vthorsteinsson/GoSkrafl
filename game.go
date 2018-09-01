@@ -42,6 +42,10 @@ type Game struct {
 	Dawg *Dawg
 	// The tile set to use in the game
 	TileSet *TileSet
+	// The number of consecutive non-tile, zero-point moves
+	// (when 6 consecutive such moves have been made,
+	// the game is over)
+	NumPassMoves int
 }
 
 // GameState contains the bare minimum of information
@@ -229,9 +233,7 @@ func (game *Game) ApplyValid(move Move) bool {
 	return true
 }
 
-// Apply applies a move to the game, appends it to the
-// move list, replenishes the player's rack if needed,
-// and updates scores.
+// Apply applies a move to the game, after validating it
 func (game *Game) Apply(move Move) bool {
 	if !move.IsValid(game) {
 		// Not valid!
@@ -249,7 +251,11 @@ func (game *Game) IsOver() bool {
 		return false
 	}
 	// TODO: Check for resignation
-	// TODO: Check for three rounds of no tile moves
+	if game.NumPassMoves == 6 {
+		// Six consecutive zero-point moves
+		// (e.g. three rounds of passes) finish the game
+		return true
+	}
 	lastPlayer := 1 - (ix % 2)
 	if game.Racks[lastPlayer].IsEmpty() {
 		// The last player's move emptied her rack

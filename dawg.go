@@ -30,6 +30,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/hashicorp/golang-lru"
 )
 
 // Dawg encapsulates the externally generated,
@@ -52,6 +54,9 @@ type Dawg struct {
 	// mux protects the iterNodeCache
 	mux           sync.Mutex
 	iterNodeCache map[uint32][]navState
+	// crossCache is a cached map of matching patterns
+	// to bitmap sets of allowed characters
+	crossCache crossCache
 }
 
 // Coding maps an encoded byte to a legal letter, eventually
@@ -562,6 +567,8 @@ func (dawg *Dawg) Init(filePath string, alphabet string) error {
 	}
 	// Create the iteration node cache
 	dawg.iterNodeCache = make(map[uint32][]navState)
+	// Initialize the cache of cross-check match sets
+	dawg.crossCache.Init(2048)
 	return nil
 }
 
@@ -622,6 +629,63 @@ func (dawg *Dawg) MatchRunes(pattern []rune) []string {
 	mn.Init(pattern)
 	dawg.Navigate(&mn)
 	return mn.results
+}
+
+// CrossSet calculates a bit-mapped set of allowed letters
+// in a cross-check set, given a left/top and right/bottom
+// string that intersects the square being checked.
+func (dawg *Dawg) CrossSet(left, right string) uint {
+	lenLeft := len([]rune(left))
+	key := left + "?" + right
+	fetchFunc := func(key string) uint {
+		alphabetLength := dawg.alphabet.Length()
+		// We ask the DAWG to find all words consisting of the
+		// left cross word + wildcard + right cross word,
+		// for instance 'f?lt' if the left word is 'f' and the
+		// right one is 'lt' - yielding the result set
+		// { 'falt', 'filt', fúlt' }, which we convert to the
+		// legal cross set of [ 'a', 'i', 'ú' ] and intersect
+		// that with the rack
+		matches := dawg.Match(key)
+		// Collect the 'middle' letters (the ones standing in
+		// for the wildcard)
+		runes := make([]rune, 0, alphabetLength)
+		for _, match := range matches {
+			rMatch := []rune(match)
+			runes = append(runes, rMatch[lenLeft])
+		}
+		// Return the resulting bitmapped set
+		return dawg.alphabet.MakeSet(runes)
+	}
+	return dawg.crossCache.Lookup(key, fetchFunc)
+}
+
+// crossCache encapsulates a simple LRU cached map of
+// cross-set matching patterns ("af?a") to bitmapped sets
+type crossCache struct {
+	mux sync.Mutex
+	lru *lru.Cache
+}
+
+// Init initalizes an empty crossCache
+func (cc *crossCache) Init(size int) {
+	cc.lru, _ = lru.New(size)
+}
+
+// Lookup returns a bitmap set corresponding to a matching
+// pattern key. If the key is found in the cache, it is
+// returned immediately. Otherwise, the given fetchFunc() is
+// called to calculate the associated bitmap set before storing
+// it in the cache.
+func (cc *crossCache) Lookup(key string, fetchFunc func(string) uint) uint {
+	cc.mux.Lock()
+	defer cc.mux.Unlock()
+	if bitMap, ok := cc.lru.Get(key); ok {
+		return bitMap.(uint)
+	}
+	bitMap := fetchFunc(key)
+	cc.lru.Add(key, bitMap)
+	return bitMap
 }
 
 // makeDawg initializes a Dawg instance and loads its contents
