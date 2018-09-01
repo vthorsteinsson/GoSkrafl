@@ -18,7 +18,10 @@ The robot players make good use of Go's **goroutines** to evaluate all valid
 moves concurrently, employing all available processor cores for
 **parallel execution** of multiple worker threads. This, coupled with Go's
 compilation to native machine code, and its efficient memory management,
-makes GoSkrafl quite fast.
+makes GoSkrafl quite fast. (As an order of magnitude, it runs at
+approximately 10 simulated games per second on a quad-core
+Intel i7-4400 processor @ 3.4 GHz, with the Icelandic dictionary
+of 2.4 million word forms.)
 
 The design and code of GoSkrafl borrow heavily from a battle-hardened
 [SCRABBLE(tm) engine in Python](https://github.com/vthorsteinsson/Netskrafl)
