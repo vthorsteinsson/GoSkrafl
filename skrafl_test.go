@@ -346,26 +346,27 @@ func TestStringify(t *testing.T) {
 }
 
 func TestRobot(t *testing.T) {
+	robot := NewHighScoreRobot()
+	if robot == nil {
+		t.Errorf("Unable to create HighScoreRobot")
+	}
 	game := NewIcelandicGame()
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
 	}
 	game.SetPlayerNames("Villi", "Gopher")
-	robot := NewHighScoreRobot()
-	// Generate first move
-	state := game.State()
-	move := robot.GenerateMove(state)
-	if move == nil || !move.IsValid(game) {
-		t.Errorf("Invalid move generated")
-	} else {
-		game.ApplyValid(move)
+	// Go through 8 moves (4 per player)
+	const numMoves = 8
+	for i := 0; i < numMoves; i++ {
+		state := game.State()
+		move := robot.GenerateMove(state)
+		if move == nil || !move.IsValid(game) {
+			t.Errorf("Invalid move generated")
+		} else {
+			game.ApplyValid(move)
+		}
 	}
-	// Generate response move
-	state = game.State()
-	move = robot.GenerateMove(state)
-	if move == nil || !move.IsValid(game) {
-		t.Errorf("Invalid move generated")
-	} else {
-		game.ApplyValid(move)
+	if len(game.MoveList) != numMoves {
+		t.Errorf("Incorrect number of moves recorded")
 	}
 }

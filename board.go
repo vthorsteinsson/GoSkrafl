@@ -146,12 +146,17 @@ func (tile *Tile) String() string {
 
 // Sq returns a pointer to a Board square
 func (board *Board) Sq(row, col int) *Square {
+	if board == nil || row < 0 || row >= BoardSize ||
+		col < 0 || col >= BoardSize {
+		return nil
+	}
 	return &board.Squares[row][col]
 }
 
 // TileAt returns a pointer to the Tile in a given Square
 func (board *Board) TileAt(row, col int) *Tile {
-	if row < 0 || row >= BoardSize || col < 0 || col >= BoardSize {
+	if board == nil || row < 0 || row >= BoardSize ||
+		col < 0 || col >= BoardSize {
 		return nil
 	}
 	return board.Squares[row][col].Tile

@@ -84,6 +84,9 @@ func (move *TileMove) String() string {
 	return coord + " " + move.Word
 }
 
+// IllegalMoveWord is the move.Word of an illegal move
+const IllegalMoveWord = "[???]"
+
 // Init initializes a TileMove instance for a particular Board
 // using a map of Coordinate to Cover
 func (move *TileMove) Init(board *Board, covers Covers) {
@@ -127,16 +130,24 @@ func (move *TileMove) Init(board *Board, covers Covers) {
 		direction = BELOW
 		reverse = ABOVE
 	}
+	sq := board.Sq(top, left)
+	if sq == nil {
+		move.Word = IllegalMoveWord
+		return
+	}
 	// Start with any left prefix that is being extended
 	word := board.WordFragment(top, left, reverse)
 	// Next, traverse the covering line from top left to bottom right
-	sq := board.Sq(top, left)
 	for {
 		if cover, ok := covers[Coordinate{sq.Row, sq.Col}]; ok {
 			// This square is being covered by the tile move
 			word += string(cover.Meaning)
 		} else {
 			// This square must be covered by a previously laid tile
+			if sq.Tile == nil {
+				move.Word = IllegalMoveWord
+				return
+			}
 			word += string(sq.Tile.Meaning)
 		}
 		if sq.Row == bottom && sq.Col == right {
@@ -147,7 +158,8 @@ func (move *TileMove) Init(board *Board, covers Covers) {
 		// Move to the next adjacent square, in the direction of the move
 		sq = board.Adjacents[sq.Row][sq.Col][direction]
 		if sq == nil {
-			panic("TileMove unexpectedly runs off the board")
+			move.Word = IllegalMoveWord
+			return
 		}
 	}
 	// Add any suffix that may already have been on the board
