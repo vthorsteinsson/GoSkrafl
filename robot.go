@@ -79,8 +79,11 @@ func (robot *HighScoreRobot) PickMove(state *GameState, moves []Move) Move {
 		return moves[0]
 	}
 	// No valid tile moves
-	// TODO: Make an exchange move, if possible
-	// Return a pass move
+	if !state.exchangeForbidden {
+		// Exchange all tiles, since that is allowed
+		return NewExchangeMove(state.Rack.AsString())
+	}
+	// Exchange forbidden: Return a pass move
 	return NewPassMove()
 }
 

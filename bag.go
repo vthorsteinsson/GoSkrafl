@@ -29,7 +29,7 @@ import (
 
 // Bag is a randomized list of tiles, initialized from a tile
 // set, that is yet to be drawn and used in a game
-type Bag []Tile
+type Bag []*Tile
 
 // TileSet is a static list of tiles, used as a prototype
 // to copy new Bags from
@@ -104,11 +104,9 @@ var NewIcelandicTileSet = initNewIcelandicTileSet()
 func makeBag(tileSet *TileSet) *Bag {
 	// Make a fresh array for the bag and copy the tile set to it
 	bag := make(Bag, len(tileSet.Tiles))
-	copy(bag, tileSet.Tiles)
-	// Shuffle the bag
-	rand.Shuffle(len(bag), func(i, j int) {
-		bag[i], bag[j] = bag[j], bag[i]
-	})
+	for i := range bag {
+		bag[i] = &tileSet.Tiles[i]
+	}
 	// Return a reference
 	return &bag
 }
@@ -120,11 +118,20 @@ func (bag *Bag) DrawTile() *Tile {
 		// No tiles left in the bag
 		return nil
 	}
-	// We pop the last tile from the bag and return it
+	// Find a random tile in the bag and return it
 	lenBag := len(*bag)
-	tile := &(*bag)[lenBag-1]
-	*bag = (*bag)[0 : lenBag-1]
+	i := rand.Intn(lenBag)
+	tile := (*bag)[i]
+	*bag = append((*bag)[:i], (*bag)[i+1:]...)
 	return tile
+}
+
+// ReturnTile returns a previously drawn Tile to the Bag
+func (bag *Bag) ReturnTile(tile *Tile) {
+	if bag == nil {
+		return
+	}
+	*bag = append(*bag, tile)
 }
 
 // String returns a string representation of a Bag
@@ -138,7 +145,7 @@ func (bag *Bag) String() string {
 	} else {
 		sb.WriteString(fmt.Sprintf("(%v tiles): ", bag.TileCount()))
 		for i := 0; i < len(*bag); i++ {
-			sb.WriteString(fmt.Sprintf("%v ", &(*bag)[i]))
+			sb.WriteString(fmt.Sprintf("%v ", (*bag)[i]))
 		}
 	}
 	return sb.String()

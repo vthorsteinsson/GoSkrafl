@@ -301,6 +301,26 @@ func TestTileMove(t *testing.T) {
 	if tileMove.Horizontal {
 		t.Errorf("Move is incorrectly identified as being horizontal")
 	}
+	state := game.State()
+	exchangeMove := NewExchangeMove(state.Rack.AsString())
+	if !exchangeMove.IsValid(game) {
+		t.Errorf("ExchangeMove is incorrectly seen as not valid")
+	}
+	if !game.ApplyValid(exchangeMove) {
+		t.Errorf("Unable to apply valid ExchangeMove")
+	}
+	exchangeMove = NewExchangeMove("")
+	if exchangeMove.IsValid(game) {
+		t.Errorf("ExchangeMove is incorrectly seen as valid")
+	}
+	exchangeMove = NewExchangeMove("czbleh")
+	if exchangeMove.IsValid(game) {
+		t.Errorf("ExchangeMove is incorrectly seen as valid")
+	}
+	exchangeMove = NewExchangeMove(state.Rack.AsString() + state.Rack.AsString())
+	if exchangeMove.IsValid(game) {
+		t.Errorf("ExchangeMove is incorrectly seen as valid")
+	}
 }
 
 func TestFindLeftParts(t *testing.T) {

@@ -463,7 +463,8 @@ func (rack *Rack) RemoveTile(tile *Tile) bool {
 
 // Extract obtains the given number of tiles from the rack,
 // returning them as a list. If a tile is blank,
-// assign the given meaning to it.
+// assign the given meaning to it. This function is useful
+// for debugging and testing purposes.
 func (rack *Rack) Extract(numTiles int, meaning rune) []*Tile {
 	ex := make([]*Tile, 0, numTiles)
 	for i := 0; i < RackSize && numTiles > 0; i++ {

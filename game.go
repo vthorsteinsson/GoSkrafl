@@ -37,7 +37,7 @@ type Game struct {
 	Board       Board
 	Racks       [2]Rack
 	Bag         *Bag
-	MoveList    []Move
+	MoveList    []*MoveItem
 	// The DAWG dictionary to use in the game
 	Dawg *Dawg
 	// The tile set to use in the game
@@ -62,6 +62,14 @@ type GameState struct {
 	exchangeForbidden bool
 }
 
+// MoveItem is an entry in the MoveList of a Game.
+// It contains the player's Rack as it was before the move,
+// as well as the move itself.
+type MoveItem struct {
+	RackBefore string
+	Move       Move
+}
+
 // Init initializes a new game with a fresh bag copied
 // from the given tile set, and draws the player racks
 // from the bag
@@ -73,7 +81,7 @@ func (game *Game) Init(tileSet *TileSet, dawg *Dawg) {
 	game.Bag = makeBag(tileSet)
 	game.Racks[0].Fill(game.Bag)
 	game.Racks[1].Fill(game.Bag)
-	game.MoveList = make([]Move, 0, 30) // Initial capacity for 30 moves
+	game.MoveList = make([]*MoveItem, 0, 30) // Initial capacity for 30 moves
 	game.Dawg = dawg
 }
 
@@ -225,9 +233,11 @@ func (game *Game) ApplyValid(move Move) bool {
 	// a move to the move list (this reverses the players)
 	playerToMove := game.PlayerToMove()
 	// Append to move list
-	game.MoveList = append(game.MoveList, move)
+	rack := &game.Racks[playerToMove]
+	moveItem := &MoveItem{RackBefore: rack.AsString(), Move: move}
+	game.MoveList = append(game.MoveList, moveItem)
 	// Replenish the player's rack, as needed
-	game.Racks[playerToMove].Fill(game.Bag)
+	rack.Fill(game.Bag)
 	// Update the player's score
 	game.Scores[playerToMove] += score
 	return true
@@ -281,7 +291,8 @@ func (game *Game) String() string {
 	if len(game.MoveList) > 0 {
 		state := game.State()
 		sb.WriteString("Moves:\n")
-		for i, m := range game.MoveList {
+		for i, item := range game.MoveList {
+			m := item.Move
 			if i%2 == 0 {
 				// Left side player
 				sb.WriteString(fmt.Sprintf("  %2d: (%v) %v", (i/2)+1, m.Score(state), m))

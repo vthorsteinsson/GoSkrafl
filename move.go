@@ -21,6 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package skrafl
 
+import (
+	"strings"
+)
+
 // Move is an interface to various types of moves
 type Move interface {
 	IsValid(*Game) bool
@@ -31,6 +35,20 @@ type Move interface {
 // PassMove is a move that is always valid, has no effect when applied,
 // and has a score of 0
 type PassMove struct {
+}
+
+// ExchangeMove is a move that exchanges 1-7 tiles from the player's
+// Rack with the Bag. It is only valid when at least 7 tiles are
+// left in the Bag.
+type ExchangeMove struct {
+	Letters string
+}
+
+// FinalMove represents the final adjustments that are made to
+// player scores at the end of a Game
+type FinalMove struct {
+	OpponentRack    string
+	ScoreAdjustment int
 }
 
 // TileMove represents a normal tile move by a player, where
@@ -357,5 +375,73 @@ func (move *PassMove) Apply(game *Game) bool {
 
 // Score is always 0 for a PassMove
 func (move *PassMove) Score(state *GameState) int {
+	return 0
+}
+
+// NewExchangeMove returns a reference to a fresh ExchangeMove
+func NewExchangeMove(letters string) *ExchangeMove {
+	return &ExchangeMove{Letters: letters}
+}
+
+// String return a string description of the ExchangeMove
+func (move *ExchangeMove) String() string {
+	return "Exch " + move.Letters
+}
+
+// IsValid returns true if an exchange is allowed and all
+// exchanged tiles are actually in the player's rack
+func (move *ExchangeMove) IsValid(game *Game) bool {
+	if move == nil || game == nil {
+		return false
+	}
+	if !game.Bag.ExchangeAllowed() {
+		// Too few tiles left in the bag
+		return false
+	}
+	runes := []rune(move.Letters)
+	if len(runes) < 1 || len(runes) > RackSize {
+		return false
+	}
+	rack := game.Racks[game.PlayerToMove()].AsString()
+	for _, letter := range runes {
+		if !strings.ContainsRune(rack, letter) {
+			// This exchanged letter is not in the player's rack
+			return false
+		}
+		rack = strings.Replace(rack, string(letter), "", 1)
+	}
+	// All exchanged letters found: the move is OK
+	return true
+}
+
+// Apply replenishes the exchanged tiles in the Rack
+// from the Bag
+func (move *ExchangeMove) Apply(game *Game) bool {
+	runes := []rune(move.Letters)
+	rack := &game.Racks[game.PlayerToMove()]
+	tiles := make([]*Tile, 0, RackSize)
+	for _, letter := range runes {
+		tile := rack.FindTile(letter)
+		if tile == nil {
+			// Should not happen!
+			return false
+		}
+		if !rack.RemoveTile(tile) {
+			// Should not happen!
+			return false
+		}
+		tiles = append(tiles, tile)
+	}
+	// Return the tiles to the Bag
+	for _, tile := range tiles {
+		game.Bag.ReturnTile(tile)
+	}
+	// Increment the number of consecutive zero-point moves
+	game.NumPassMoves++
+	return true
+}
+
+// Score is always 0 for an ExchangeMove
+func (move *ExchangeMove) Score(state *GameState) int {
 	return 0
 }
