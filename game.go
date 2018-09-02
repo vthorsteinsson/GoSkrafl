@@ -223,28 +223,57 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 // appends it to the move list, replenishes the player's rack
 // if needed, and updates scores.
 func (game *Game) ApplyValid(move Move) bool {
+	// Be careful to call PlayerToMove() before appending
+	// a move to the move list (this reverses the players)
+	playerToMove := game.PlayerToMove()
+	rack := &game.Racks[playerToMove]
+	rackBefore := rack.AsString()
 	if !move.Apply(game) {
 		// Not valid! Should not happen...
 		return false
 	}
-	// Valid: calculate the score
+	// Calculate the score
 	score := move.Score(game.State())
-	// Be careful to call PlayerToMove() before appending
-	// a move to the move list (this reverses the players)
-	playerToMove := game.PlayerToMove()
-	// Append to move list
-	rack := &game.Racks[playerToMove]
-	moveItem := &MoveItem{RackBefore: rack.AsString(), Move: move}
-	game.MoveList = append(game.MoveList, moveItem)
-	// Replenish the player's rack, as needed
-	rack.Fill(game.Bag)
 	// Update the player's score
 	game.Scores[playerToMove] += score
+	// Append to move list
+	game.appendMove(rackBefore, move)
+	// Replenish the player's rack, as needed
+	rack.Fill(game.Bag)
+	if game.IsOver() {
+		// The game is now over: add the FinalMoves
+		rackThis := game.Racks[playerToMove].AsString()
+		rackOpp := game.Racks[1-playerToMove].AsString()
+		var multiplyFactor = 2
+		if len(rackThis) > 0 {
+			// The game is not finishing by the final player
+			// completing his rack: both players then get the
+			// opponent's remaining tile scores
+			multiplyFactor = 1
+		}
+		// Add a final move for the opponent
+		// (which in most cases yields zero points, since
+		// the finishing player has no tiles left)
+		game.appendMove(rackOpp, NewFinalMove(rackThis, multiplyFactor))
+		// Add a final move for the finishing player
+		// (which in most cases yields double the tile scores
+		// of the opponent's rack)
+		game.appendMove(rackThis, NewFinalMove(rackOpp, multiplyFactor))
+	}
 	return true
+}
+
+// appendMove appends a given Move to the Game's MoveList
+func (game *Game) appendMove(rackBefore string, move Move) {
+	moveItem := &MoveItem{RackBefore: rackBefore, Move: move}
+	game.MoveList = append(game.MoveList, moveItem)
 }
 
 // Apply applies a move to the game, after validating it
 func (game *Game) Apply(move Move) bool {
+	if game == nil || move == nil {
+		return false
+	}
 	if !move.IsValid(game) {
 		// Not valid!
 		return false

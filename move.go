@@ -47,8 +47,8 @@ type ExchangeMove struct {
 // FinalMove represents the final adjustments that are made to
 // player scores at the end of a Game
 type FinalMove struct {
-	OpponentRack    string
-	ScoreAdjustment int
+	OpponentRack   string
+	MultiplyFactor int
 }
 
 // TileMove represents a normal tile move by a player, where
@@ -420,6 +420,7 @@ func (move *ExchangeMove) Apply(game *Game) bool {
 	runes := []rune(move.Letters)
 	rack := &game.Racks[game.PlayerToMove()]
 	tiles := make([]*Tile, 0, RackSize)
+	// First, remove the exchanged tiles from the player's Rack
 	for _, letter := range runes {
 		tile := rack.FindTile(letter)
 		if tile == nil {
@@ -432,7 +433,9 @@ func (move *ExchangeMove) Apply(game *Game) bool {
 		}
 		tiles = append(tiles, tile)
 	}
-	// Return the tiles to the Bag
+	// Replenish the Rack from the Bag...
+	rack.Fill(game.Bag)
+	// ...before returning the exchanged tiles to the Bag
 	for _, tile := range tiles {
 		game.Bag.ReturnTile(tile)
 	}
@@ -444,4 +447,34 @@ func (move *ExchangeMove) Apply(game *Game) bool {
 // Score is always 0 for an ExchangeMove
 func (move *ExchangeMove) Score(state *GameState) int {
 	return 0
+}
+
+// NewFinalMove returns a reference to a fresh FinalMove
+func NewFinalMove(rackOpp string, multiplyFactor int) *FinalMove {
+	return &FinalMove{OpponentRack: rackOpp, MultiplyFactor: multiplyFactor}
+}
+
+// String return a string description of the FinalMove
+func (move *FinalMove) String() string {
+	return "Rack " + move.OpponentRack
+}
+
+// IsValid always returns true for a FinalMove
+func (move *FinalMove) IsValid(game *Game) bool {
+	return true
+}
+
+// Apply always succeeds and returns true for a FinalMove
+func (move *FinalMove) Apply(game *Game) bool {
+	return true
+}
+
+// Score returns the opponent's rack leave, multiplied
+// by a multiplication factor that can be 1 or 2
+func (move *FinalMove) Score(state *GameState) int {
+	var adj = 0
+	for _, letter := range []rune(move.OpponentRack) {
+		adj += state.TileSet.Scores[letter]
+	}
+	return adj * move.MultiplyFactor
 }
