@@ -59,8 +59,8 @@ type Navigation struct {
 // satisfied
 func (nav *Navigation) FromNode(offset uint32, matched string) {
 	iter := nav.dawg.iterNode(offset)
-	for i := 0; i < len(iter); i++ {
-		state := &iter[i]
+	for i := 0; i < len(*iter); i++ {
+		state := &((*iter)[i])
 		if nav.navigator.PushEdge(state.prefix[0]) {
 			// The navigator wants us to enter this edge
 			nav.FromEdge(state, matched)

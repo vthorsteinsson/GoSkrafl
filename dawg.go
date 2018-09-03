@@ -52,7 +52,7 @@ type Dawg struct {
 	alphabet Alphabet
 	// mux protects the iterNodeCache
 	mux           sync.Mutex
-	iterNodeCache map[uint32][]navState
+	iterNodeCache map[uint32]*navStates
 	// crossCache is a cached map of matching patterns
 	// to bitmap sets of allowed characters
 	crossCache crossCache
@@ -136,10 +136,13 @@ type navState struct {
 	nextNode uint32
 }
 
+// navStates is a list of navigation states
+type navStates []navState
+
 // iterNode is an internal function that returns a list of
 // prefixes and associated next node offsets. We calculate
 // this list only once, and then cache it in the Dawg instance.
-func (dawg *Dawg) iterNode(offset uint32) []navState {
+func (dawg *Dawg) iterNode(offset uint32) *navStates {
 	// Start by looking for this offset in the cached map.
 	// We must lock the shared iterNodeCache object since
 	// we're reading it and possibly updating it.
@@ -158,7 +161,7 @@ func (dawg *Dawg) iterNode(offset uint32) []navState {
 	coding := &dawg.coding
 	numEdges := int(b[offset] & 0x7f)
 	offset++
-	result := make([]navState, numEdges)
+	result := make(navStates, numEdges)
 	for i := 0; i < numEdges; i++ {
 		lenByte := b[offset]
 		state := &result[i]
@@ -180,8 +183,8 @@ func (dawg *Dawg) iterNode(offset uint32) []navState {
 			offset += 4
 		}
 	}
-	dawg.iterNodeCache[originalOffset] = result
-	return result
+	dawg.iterNodeCache[originalOffset] = &result
+	return &result
 }
 
 // Init reads the Dawg into memory (TODO: or memory-maps it)
@@ -217,7 +220,7 @@ func (dawg *Dawg) Init(filePath string, alphabet string) error {
 		i++
 	}
 	// Create the iteration node cache
-	dawg.iterNodeCache = make(map[uint32][]navState)
+	dawg.iterNodeCache = make(map[uint32]*navStates)
 	// Initialize the cache of cross-check match sets
 	dawg.crossCache.Init(2048)
 	return nil

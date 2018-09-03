@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package skrafl
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -366,6 +367,9 @@ func TestStringify(t *testing.T) {
 }
 
 func BenchmarkRobot(b *testing.B) {
+
+	// Try to make the benchmark as deterministic as possible
+	rand.Seed(31743) // Commodore Basic 4.0 / 31743 bytes free / ready.
 
 	// Generate a sequence of moves and responses
 	simulateGame := func(robot *RobotWrapper) {
