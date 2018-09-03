@@ -7,11 +7,15 @@ GoSkrafl is a **fast, concurrent** SCRABBLE(tm) engine and **auto-playing robot*
 It is a package for the Go programming language, licensed under GNU GPLv3.
 It has been tested on Linux and Windows, and probably works fine on MacOS too.
 
-Out of the box, GoSkrafl supports Icelandic (the author's native language).
-But as it uses Unicode and UTF-8 throughout, GoSkrafl can easily be tweaked
+Out of the box, GoSkrafl supports **TWL06**, **SOWPODS** and **Icelandic**
+SCRABBLE(tm) dictionaries and corresponding tile sets. But as it employs
+Unicode and UTF-8 throughout, GoSkrafl can easily be tweaked
 to accommodate most natural languages and dictionaries, and any tile bag
-configuration. It supports the whole game lifecycle, board, rack and bag
-management, move validation, scoring, word and cross-word checks, and
+configuration. (The only limitation is that there cannot be more different
+letters in an alphabet than there are bits in the native **uint** type.)
+
+The GoSkrafl package encompasses the whole game lifecycle, board, rack and bag
+management, move validation, scoring, word and cross-word checks, as well as
 **robot players**.
 
 The robot players make good use of Go's **goroutines** to evaluate all valid
@@ -44,8 +48,8 @@ import (
 )
 
 func main() {
-    // Set up a game of Icelandic SCRABBLE(tm)
-    game := skrafl.NewIcelandicGame()
+    // Set up a game of SOWPODS SCRABBLE(tm)
+    game := skrafl.NewSowpodsGame()
     game.SetPlayerNames("Robot A", "Robot B")
     // Create a robot that always selects
     // the highest-scoring valid move
