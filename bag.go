@@ -29,7 +29,14 @@ import (
 
 // Bag is a randomized list of tiles, initialized from a tile
 // set, that is yet to be drawn and used in a game
-type Bag []*Tile
+type Bag struct {
+	// Tiles is a fixed array of all tiles in a game,
+	// copied at the start of the game from a TileSet
+	Tiles []Tile
+	// Contents is a list of pointers into the Tiles array,
+	// corresponding to the current contents of the bag
+	Contents []*Tile
+}
 
 // TileSet is a static list of tiles, used as a prototype
 // to copy new Bags from
@@ -133,26 +140,30 @@ var EnglishTileSet = initEnglishTileSet()
 // Initialize a bag from a tile set and return a reference to it
 func makeBag(tileSet *TileSet) *Bag {
 	// Make a fresh array for the bag and copy the tile set to it
-	bag := make(Bag, len(tileSet.Tiles))
-	for i := range bag {
-		bag[i] = &tileSet.Tiles[i]
+	bag := &Bag{}
+	bag.Tiles = make([]Tile, len(tileSet.Tiles))
+	copy(bag.Tiles, tileSet.Tiles)
+	// Create an array of tile pointers as the initial contents of the bag
+	bag.Contents = make([]*Tile, len(bag.Tiles))
+	for i := range bag.Contents {
+		bag.Contents[i] = &bag.Tiles[i]
 	}
 	// Return a reference
-	return &bag
+	return bag
 }
 
 // DrawTile pops one tile from the (randomized) bag
 // and returns it
 func (bag *Bag) DrawTile() *Tile {
-	if bag == nil || len(*bag) == 0 {
+	tileCount := bag.TileCount()
+	if tileCount == 0 {
 		// No tiles left in the bag
 		return nil
 	}
 	// Find a random tile in the bag and return it
-	lenBag := len(*bag)
-	i := rand.Intn(lenBag)
-	tile := (*bag)[i]
-	*bag = append((*bag)[:i], (*bag)[i+1:]...)
+	i := rand.Intn(tileCount)
+	tile := bag.Contents[i]
+	bag.Contents = append(bag.Contents[:i], bag.Contents[i+1:]...)
 	return tile
 }
 
@@ -161,7 +172,7 @@ func (bag *Bag) ReturnTile(tile *Tile) {
 	if bag == nil {
 		return
 	}
-	*bag = append(*bag, tile)
+	bag.Contents = append(bag.Contents, tile)
 }
 
 // String returns a string representation of a Bag
@@ -170,12 +181,13 @@ func (bag *Bag) String() string {
 		return ""
 	}
 	var sb strings.Builder
-	if len(*bag) == 0 {
+	tileCount := bag.TileCount()
+	if tileCount == 0 {
 		sb.WriteString("Empty")
 	} else {
-		sb.WriteString(fmt.Sprintf("(%v tiles): ", bag.TileCount()))
-		for i := 0; i < len(*bag); i++ {
-			sb.WriteString(fmt.Sprintf("%v ", (*bag)[i]))
+		sb.WriteString(fmt.Sprintf("(%v tiles): ", tileCount))
+		for _, tile := range bag.Contents {
+			sb.WriteString(fmt.Sprintf("%v ", tile))
 		}
 	}
 	return sb.String()
@@ -186,11 +198,11 @@ func (bag *Bag) TileCount() int {
 	if bag == nil {
 		return 0
 	}
-	return len(*bag)
+	return len(bag.Contents)
 }
 
 // ExchangeAllowed returns true if there are at least RackSize
 // tiles left in the bag, thus allowing exchange of tiles
 func (bag *Bag) ExchangeAllowed() bool {
-	return bag != nil && len(*bag) >= RackSize
+	return bag.TileCount() >= RackSize
 }
