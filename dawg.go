@@ -349,7 +349,7 @@ func makeDawg(fileName string, alphabet string) *Dawg {
 	dawg := &Dawg{}
 	goPath := build.Default.GOPATH
 	// There should be a better way to do this?
-	path := goPath + "/src/github.com/vthorsteinsson/GoSkrafl/" + fileName
+	path := goPath + "/src/github.com/vthorsteinsson/GoSkrafl/dicts/" + fileName
 	path = filepath.FromSlash(path)
 	err := dawg.Init(path, alphabet)
 	if err != nil {
