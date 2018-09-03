@@ -97,6 +97,30 @@ func NewIcelandicGame() *Game {
 	return game
 }
 
+// NewTwl06Game instantiates a new Game with the English TileSet
+// and returns a reference to it
+func NewTwl06Game() *Game {
+	if Twl06Dictionary == nil {
+		// Unable to read TWL06 DAWG
+		return nil
+	}
+	game := &Game{}
+	game.Init(EnglishTileSet, Twl06Dictionary)
+	return game
+}
+
+// NewSowpodsGame instantiates a new Game with the English TileSet
+// and returns a reference to it
+func NewSowpodsGame() *Game {
+	if SowpodsDictionary == nil {
+		// Unable to read SOWPODS DAWG
+		return nil
+	}
+	game := &Game{}
+	game.Init(EnglishTileSet, SowpodsDictionary)
+	return game
+}
+
 // State returns a new GameState instance describing the state of the
 // game in a minimal manner so that a robot player can decide on a move
 func (game *Game) State() *GameState {

@@ -361,7 +361,18 @@ func makeDawg(fileName string, alphabet string) *Dawg {
 // TODO: move this to the DAWG file.
 const IcelandicAlphabet = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
 
+// EnglishAlphabet contains the English SCRABBLE(tm) alphabet.
+const EnglishAlphabet = "abcdefghijklmnopqrstuvwxyz"
+
 // IcelandicDictionary is a Dawg instance containing the Icelandic
 // Scrabble(tm) dictionary, as derived from the BÍN database
 // (Beygingarlýsing íslensks nútímamáls)
 var IcelandicDictionary = makeDawg("ordalisti.bin.dawg", IcelandicAlphabet)
+
+// Twl06Dictionary is a Dawg instance containing the Tournament
+// Word List 06, used in U.S. SCRABBLE(tm).
+var Twl06Dictionary = makeDawg("TWL06.bin.dawg", EnglishAlphabet)
+
+// SowpodsDictionary is a Dawg instance containing the SOWPODS
+// word list, used in European and U.S. SCRABBLE(tm).
+var SowpodsDictionary = makeDawg("sowpods.bin.dawg", EnglishAlphabet)
