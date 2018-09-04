@@ -73,6 +73,9 @@ func main() {
 }
 ```
 
+A fancier **main** program for exercising the GoSkrafl engine can
+be [found here](https://github.com/vthorsteinsson/GoSkrafl/blob/master/main/main.go).
+
 ### Original Author
 
 _Vilhjálmur Þorsteinsson, Reykjavík, Iceland._

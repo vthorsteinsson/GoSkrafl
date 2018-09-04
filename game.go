@@ -256,12 +256,8 @@ func (game *Game) ApplyValid(move Move) bool {
 		// Not valid! Should not happen...
 		return false
 	}
-	// Calculate the score
-	score := move.Score(game.State())
-	// Update the player's score
-	game.Scores[playerToMove] += score
-	// Append to move list
-	game.appendMove(rackBefore, move)
+	// Update the scores and append to the move list
+	game.acceptMove(rackBefore, move)
 	// Replenish the player's rack, as needed
 	rack.Fill(game.Bag)
 	if game.IsOver() {
@@ -278,17 +274,25 @@ func (game *Game) ApplyValid(move Move) bool {
 		// Add a final move for the opponent
 		// (which in most cases yields zero points, since
 		// the finishing player has no tiles left)
-		game.appendMove(rackOpp, NewFinalMove(rackThis, multiplyFactor))
+		finalOpp := NewFinalMove(rackThis, multiplyFactor)
+		game.acceptMove(rackOpp, finalOpp)
 		// Add a final move for the finishing player
 		// (which in most cases yields double the tile scores
 		// of the opponent's rack)
-		game.appendMove(rackThis, NewFinalMove(rackOpp, multiplyFactor))
+		finalThis := NewFinalMove(rackOpp, multiplyFactor)
+		game.acceptMove(rackThis, finalThis)
 	}
 	return true
 }
 
-// appendMove appends a given Move to the Game's MoveList
-func (game *Game) appendMove(rackBefore string, move Move) {
+// acceptMove updates the scores and appends a given Move
+// to the Game's MoveList
+func (game *Game) acceptMove(rackBefore string, move Move) {
+	// Calculate the score
+	score := move.Score(game.State())
+	// Update the player's score
+	game.Scores[game.PlayerToMove()] += score
+	// Append to the move list
 	moveItem := &MoveItem{RackBefore: rackBefore, Move: move}
 	game.MoveList = append(game.MoveList, moveItem)
 }

@@ -402,22 +402,41 @@ func TestRobot(t *testing.T) {
 			t.Errorf("Unable to create a new game")
 		}
 		game.SetPlayerNames("Villi", "Gopher")
-		// Go through 8 moves (4 per player)
-		const numMoves = 8
-		for i := 0; i < numMoves; i++ {
+		// Go through an entire game
+		i := 0
+		for {
 			state := game.State()
+			if state == nil {
+				t.Errorf("Unexpected nil game state")
+			}
 			move := robot.GenerateMove(state)
 			if move == nil || !move.IsValid(game) {
 				t.Errorf("Invalid move generated")
 			} else {
-				game.ApplyValid(move)
+				if !game.ApplyValid(move) {
+					t.Errorf("Move not valid when applied")
+				}
+				i++
+				if game.IsOver() {
+					// Should add two moves to the move list
+					i += 2
+					break
+				}
+			}
+			if i >= 50 {
+				t.Errorf("Game appears not to terminate")
+				break
 			}
 		}
-		if len(game.MoveList) != numMoves {
+		if len(game.MoveList) != i {
 			t.Errorf("Incorrect number of moves recorded")
 		}
 	}
-	runTest(NewIcelandicGame)
-	runTest(NewTwl06Game)
-	runTest(NewSowpodsGame)
+	// Cycle through 5 rounds of three simulated games, each
+	// with its own Dawg and alphabet
+	for cycle := 0; cycle < 5; cycle++ {
+		runTest(NewIcelandicGame)
+		runTest(NewTwl06Game)
+		runTest(NewSowpodsGame)
+	}
 }
