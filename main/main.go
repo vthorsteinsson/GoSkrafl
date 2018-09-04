@@ -17,30 +17,23 @@ type GameConstructor func() *skrafl.Game
 
 // Generate a sequence of moves and responses
 func simulateGame(gameConstructor GameConstructor, robot *skrafl.RobotWrapper, verbose bool) {
+	// Wrap fmt.Printf
+	var p func(string, ...interface{}) (int, error)
+	if verbose {
+		p = fmt.Printf
+	} else {
+		p = func(format string, a ...interface{}) (int, error) { return 0, nil }
+	}
 	game := gameConstructor()
 	game.SetPlayerNames("Robot A", "Robot B")
-	if verbose {
-		fmt.Printf("%v\n", game)
-	}
+	p("%v\n", game)
 	for i := 0; ; i++ {
 		state := game.State()
 		move := robot.GenerateMove(state)
-		if move == nil || !move.IsValid(game) {
-			if verbose {
-				fmt.Printf("Invalid move generated\n")
-			} else {
-				panic("Invalid move generated")
-			}
-			break
-		}
 		game.ApplyValid(move)
-		if verbose {
-			fmt.Printf("%v\n", game)
-		}
+		p("%v\n", game)
 		if game.IsOver() {
-			if verbose {
-				fmt.Printf("Game over!\n")
-			}
+			p("Game over!\n")
 			break
 		}
 	}
