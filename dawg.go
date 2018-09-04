@@ -167,11 +167,16 @@ func (dawg *Dawg) iterNode(offset uint32) *navStates {
 		state := &result[i]
 		offset++
 		if lenByte&0x40 != 0 {
+			// This is a single-rune prefix, with the rune index
+			// in the lower 5 bits
 			state.prefix = make(Prefix, 0, 2)
 			state.prefix = append(state.prefix, (*coding)[lenByte&0x3f]...)
 		} else {
+			// This is a multi-rune prefix
 			lenByte &= 0x3f
 			state.prefix = make(Prefix, 0, lenByte+1)
+			// Note that each byte in the buffer can correspond to one or two runes
+			// into the prefix (e.g. 'a' or 'a|')
 			for j := 0; j < int(lenByte); j++ {
 				state.prefix = append(state.prefix, (*coding)[b[int(offset)+j]]...)
 			}
@@ -210,6 +215,12 @@ func (dawg *Dawg) Init(filePath string, alphabet string) error {
 	dawg.coding = make(Coding)
 	i := byte(0)
 	dawg.alphabet.Init(alphabet)
+	// For each rune in the alphabet, create a coding
+	// entry that maps a byte index to a slice containing
+	// just that rune - and also a coding entry that maps
+	// that byte index with the high bit set (| 0x80) to
+	// a slice containing that rune plus '|'. The vertical
+	// bar is a finality marker within a prefix sequence.
 	for _, chr := range alphabet {
 		dawg.coding[i] = make(Prefix, 1)
 		dawg.coding[i][0] = chr

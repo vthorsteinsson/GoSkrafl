@@ -23,6 +23,7 @@ package skrafl
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -330,8 +331,28 @@ func TestFindLeftParts(t *testing.T) {
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
 	}
-	leftParts := FindLeftParts(game.Dawg, game.Racks[game.PlayerToMove()].AsString())
-	_ = leftParts
+	rack := game.Racks[game.PlayerToMove()].AsString()
+	leftParts := FindLeftParts(game.Dawg, rack)
+	for lenParts, lp := range leftParts {
+		for _, part := range lp {
+			runes := []rune(part.matched)
+			if len(runes) != lenParts+1 {
+				t.Errorf("Unexpected length of left part %v", part.matched)
+			}
+			tempRack := string(rack)
+			for _, r := range runes {
+				if strings.ContainsRune(tempRack, r) {
+					tempRack = strings.Replace(tempRack, string(r), "", 1)
+				} else {
+					if strings.ContainsRune(tempRack, '?') {
+						tempRack = strings.Replace(tempRack, "?", "", 1)
+					} else {
+						t.Errorf("Left prefix contains a letter that is not in the rack")
+					}
+				}
+			}
+		}
+	}
 }
 
 func TestBitMaps(t *testing.T) {

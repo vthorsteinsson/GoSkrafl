@@ -8,6 +8,9 @@ main/debug
 main/main.exe
 main/main
 
+# VS Code
+.vscode/
+
 # Test binary, build with `go test -c`
 *.test
 

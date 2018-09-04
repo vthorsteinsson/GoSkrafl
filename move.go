@@ -60,6 +60,9 @@ type TileMove struct {
 	Horizontal  bool
 	Word        string
 	CachedScore *int
+	// If ValidateWords is true, IsValid() should check all words
+	// formed by this move against the game dictionary
+	ValidateWords bool
 }
 
 // Coordinate stores a Board co-ordinate as as row, col tuple
@@ -242,6 +245,28 @@ func (move *TileMove) IsValid(game *Game) bool {
 		// that is already on the board
 		if numAdjacentTiles == 0 {
 			return false
+		}
+	}
+	if !move.ValidateWords {
+		// No need to validate the words formed by this move on the board:
+		// return true, we're done
+		return true
+	}
+	if move.Word == IllegalMoveWord || move.Word == "" {
+		return false
+	}
+	if !game.Dawg.Find(move.Word) {
+		return false
+	}
+	// Check the cross words
+	for coord, cover := range move.Covers {
+		left, right := game.Board.CrossWords(coord.Col, coord.Row, !move.Horizontal)
+		if len(left) > 0 || len(right) > 0 {
+			// There is a cross word here: check it
+			if !game.Dawg.Find(left + string(cover.Meaning) + right) {
+				// Not found in the dictionary
+				return false
+			}
 		}
 	}
 	return true
