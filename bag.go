@@ -167,6 +167,25 @@ func (bag *Bag) DrawTile() *Tile {
 	return tile
 }
 
+// DrawTileByLetter draws the specified tile from the bag and
+// returns it
+func (bag *Bag) DrawTileByLetter(letter rune) *Tile {
+	tileCount := bag.TileCount()
+	// Find a corresponding tile in the bag
+	var i = 0
+	for i < tileCount && bag.Contents[i].Letter != letter {
+		i++
+	}
+	if i >= tileCount {
+		// No such tile found
+		return nil
+	}
+	// Found the tile: draw it from the bag and return it
+	tile := bag.Contents[i]
+	bag.Contents = append(bag.Contents[:i], bag.Contents[i+1:]...)
+	return tile
+}
+
 // ReturnTile returns a previously drawn Tile to the Bag
 func (bag *Bag) ReturnTile(tile *Tile) {
 	if bag == nil {

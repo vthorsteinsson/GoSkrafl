@@ -136,6 +136,40 @@ func (rack *Rack) Fill(bag *Bag) bool {
 	return true
 }
 
+// FillFromString draws tiles from the given string
+// (and in parallel from the Bag) to fill the Rack.
+// Returns false if a tile corresponding to a letter
+// from the string is not found in the bag.
+func (rack *Rack) FillFromString(bag *Bag, forceDraw string) bool {
+	runes := []rune(forceDraw)
+	for i := 0; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		if sq.Tile == nil {
+			// Empty slot: draw a tile from the forceDraw string
+			if len(runes) == 0 {
+				return false
+			}
+			if sq.Tile = bag.DrawTileByLetter(runes[0]); sq.Tile == nil {
+				return false
+			}
+			// Success: cut the letter from the runes array
+			runes = runes[1:]
+		}
+		if sq.Tile != nil {
+			// Got a new tile in the rack:
+			// increment the letter's count in the rack map
+			letter := sq.Tile.Letter
+			if _, ok := rack.Letters[letter]; ok {
+				rack.Letters[letter]++
+			} else {
+				rack.Letters[letter] = 1
+			}
+		}
+	}
+	// Able to fill all empty slots
+	return true
+}
+
 // String represents a Tile as a string
 func (tile *Tile) String() string {
 	if tile == nil {

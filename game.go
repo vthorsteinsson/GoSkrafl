@@ -243,10 +243,18 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 	return game.Apply(NewTileMove(&game.Board, covers))
 }
 
-// ApplyValid applies an already validated move to the game,
-// appends it to the move list, replenishes the player's rack
+// ApplyValid applies an already validated Move to a Game,
+// appends it to the move list, replenishes the player's Rack
 // if needed, and updates scores.
 func (game *Game) ApplyValid(move Move) bool {
+	return game.rawApply(move, "")
+}
+
+// rawApply applies a Move to a Game. Optionally, a string
+// can be given that forces the Rack replenishment to consist
+// of the corresponding set of tiles. This may be used for
+// testing purposes or to emulate a previously played game.
+func (game *Game) rawApply(move Move, forceDraw string) bool {
 	// Be careful to call PlayerToMove() before appending
 	// a move to the move list (this reverses the players)
 	playerToMove := game.PlayerToMove()
@@ -259,7 +267,16 @@ func (game *Game) ApplyValid(move Move) bool {
 	// Update the scores and append to the move list
 	game.acceptMove(rackBefore, move)
 	// Replenish the player's rack, as needed
-	rack.Fill(game.Bag)
+	if forceDraw == "" {
+		// Normal, random replenishment
+		rack.Fill(game.Bag)
+	} else {
+		// Forced replenishment from the forceDraw parameter
+		if !rack.FillFromString(game.Bag, forceDraw) {
+			// Unable to fill rack as requested! Should not happen...
+			return false
+		}
+	}
 	if game.IsOver() {
 		// The game is now over: add the FinalMoves
 		rackThis := game.Racks[playerToMove].AsString()
