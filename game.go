@@ -190,6 +190,31 @@ func (game *Game) PlayerToMove() int {
 	return len(game.MoveList) % 2
 }
 
+// ForceRack forces the rack of the given player
+// (or -1 = player whose move it is)
+// to contain the given tiles. The tiles that were previously
+// in the rack are first returned to the bag, and then the specified new
+// tiles are drawn. If any of them is not found in the bag, the
+// operation is aborted and false is returned.
+func (game *Game) ForceRack(player int, letters string) bool {
+	if player < 0 || player > 1 {
+		player = game.PlayerToMove()
+	}
+	rack := &game.Racks[player]
+	// Return all tiles from the Rack to the Bag
+	for i := 0; i < RackSize; i++ {
+		if tile := rack.Slots[i].Tile; tile != nil {
+			if !rack.RemoveTile(tile) {
+				// Weird, should not happen
+				return false
+			}
+			game.Bag.ReturnTile(tile)
+		}
+	}
+	// And re-fill the Rack with the given letters
+	return rack.FillByLetters(game.Bag, []rune(letters))
+}
+
 // MakePassMove appends a pass move to the Game's move list
 func (game *Game) MakePassMove() bool {
 	return game.Apply(NewPassMove())
@@ -247,14 +272,6 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 // appends it to the move list, replenishes the player's Rack
 // if needed, and updates scores.
 func (game *Game) ApplyValid(move Move) bool {
-	return game.rawApply(move, "")
-}
-
-// rawApply applies a Move to a Game. Optionally, a string
-// can be given that forces the Rack replenishment to consist
-// of the corresponding set of tiles. This may be used for
-// testing purposes or to emulate a previously played game.
-func (game *Game) rawApply(move Move, forceDraw string) bool {
 	// Be careful to call PlayerToMove() before appending
 	// a move to the move list (this reverses the players)
 	playerToMove := game.PlayerToMove()
@@ -267,16 +284,7 @@ func (game *Game) rawApply(move Move, forceDraw string) bool {
 	// Update the scores and append to the move list
 	game.acceptMove(rackBefore, move)
 	// Replenish the player's rack, as needed
-	if forceDraw == "" {
-		// Normal, random replenishment
-		rack.Fill(game.Bag)
-	} else {
-		// Forced replenishment from the forceDraw parameter
-		if !rack.FillFromString(game.Bag, forceDraw) {
-			// Unable to fill rack as requested! Should not happen...
-			return false
-		}
-	}
+	rack.Fill(game.Bag)
 	if game.IsOver() {
 		// The game is now over: add the FinalMoves
 		rackThis := game.Racks[playerToMove].AsString()

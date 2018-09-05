@@ -97,16 +97,16 @@ func (square *Square) String() string {
 
 // colIds are the column identifiers of a board
 var colIds = [BoardSize]string{
-	"A", "B", "C", "D", "E",
-	"F", "G", "H", "I", "J",
-	"L", "M", "N", "O", "P",
+	"1", "2", "3", "4", "5",
+	"6", "7", "8", "9", "0",
+	"1", "2", "3", "4", "5",
 }
 
 // rowIds are the row identifiers of a board
 var rowIds = [BoardSize]string{
-	"1", "2", "3", "4", "5",
-	"6", "7", "8", "9", "10",
-	"11", "12", "13", "14", "15",
+	"A", "B", "C", "D", "E",
+	"F", "G", "H", "I", "J",
+	"L", "M", "N", "O", "P",
 }
 
 // Fill draws tiles from the bag to fill a rack.
@@ -136,37 +136,32 @@ func (rack *Rack) Fill(bag *Bag) bool {
 	return true
 }
 
-// FillFromString draws tiles from the given string
-// (and in parallel from the Bag) to fill the Rack.
+// FillByLetters draws tiles identified by the given
+// array of letters from the Bag to fill the Rack,
+// at least as far as possible.
 // Returns false if a tile corresponding to a letter
-// from the string is not found in the bag.
-func (rack *Rack) FillFromString(bag *Bag, forceDraw string) bool {
-	runes := []rune(forceDraw)
-	for i := 0; i < RackSize; i++ {
+// from the array is not found in the bag.
+func (rack *Rack) FillByLetters(bag *Bag, letters []rune) bool {
+	for i := 0; i < RackSize && len(letters) > 0; i++ {
 		sq := &rack.Slots[i]
 		if sq.Tile == nil {
-			// Empty slot: draw a tile from the forceDraw string
-			if len(runes) == 0 {
+			if sq.Tile = bag.DrawTileByLetter(letters[0]); sq.Tile == nil {
+				// A requested tile was not found in the bag
 				return false
 			}
-			if sq.Tile = bag.DrawTileByLetter(runes[0]); sq.Tile == nil {
-				return false
-			}
-			// Success: cut the letter from the runes array
-			runes = runes[1:]
+			// Success: cut the letter from the letters array
+			letters = letters[1:]
 		}
-		if sq.Tile != nil {
-			// Got a new tile in the rack:
-			// increment the letter's count in the rack map
-			letter := sq.Tile.Letter
-			if _, ok := rack.Letters[letter]; ok {
-				rack.Letters[letter]++
-			} else {
-				rack.Letters[letter] = 1
-			}
+		// Got a new tile in the rack:
+		// increment the letter's count in the rack map
+		letter := sq.Tile.Letter
+		if _, ok := rack.Letters[letter]; ok {
+			rack.Letters[letter]++
+		} else {
+			rack.Letters[letter] = 1
 		}
 	}
-	// Able to fill all empty slots
+	// Could fill rack as far as possible according to the letters array
 	return true
 }
 
@@ -199,13 +194,13 @@ func (board *Board) TileAt(row, col int) *Tile {
 // String represents a Board as a string
 func (board *Board) String() string {
 	var sb strings.Builder
-	sb.WriteString("   ")
+	sb.WriteString("  ")
 	for i := 0; i < BoardSize; i++ {
 		sb.WriteString(colIds[i] + " ")
 	}
 	sb.WriteString("\n")
 	for i := 0; i < BoardSize; i++ {
-		sb.WriteString(fmt.Sprintf("%2s ", rowIds[i]))
+		sb.WriteString(fmt.Sprintf("%s ", rowIds[i]))
 		for j := 0; j < BoardSize; j++ {
 			sb.WriteString(fmt.Sprintf("%v ", board.Sq(i, j)))
 		}
@@ -441,7 +436,7 @@ func (rack *Rack) AsSet(alphabet *Alphabet) uint {
 
 // HasTile returns true if the given Tile is in the Rack
 func (rack *Rack) HasTile(tile *Tile) bool {
-	if tile == nil {
+	if rack == nil || tile == nil {
 		return false
 	}
 	for i := 0; i < RackSize; i++ {
@@ -455,6 +450,9 @@ func (rack *Rack) HasTile(tile *Tile) bool {
 
 // IsEmpty returns true if the Rack is empty
 func (rack *Rack) IsEmpty() bool {
+	if rack == nil {
+		return true
+	}
 	for i := 0; i < RackSize; i++ {
 		sq := &rack.Slots[i]
 		if sq.Tile != nil {
@@ -467,6 +465,9 @@ func (rack *Rack) IsEmpty() bool {
 // FindTile finds a tile with the given letter (or '?') in the
 // rack and returns a pointer to it, or nil if not found
 func (rack *Rack) FindTile(letter rune) *Tile {
+	if rack == nil {
+		return nil
+	}
 	for i := 0; i < RackSize; i++ {
 		sq := &rack.Slots[i]
 		if sq.Tile != nil && sq.Tile.Letter == letter {
@@ -478,7 +479,7 @@ func (rack *Rack) FindTile(letter rune) *Tile {
 
 // RemoveTile removes a tile from a Rack
 func (rack *Rack) RemoveTile(tile *Tile) bool {
-	if tile == nil {
+	if rack == nil || tile == nil {
 		return false
 	}
 	for i := 0; i < RackSize; i++ {
