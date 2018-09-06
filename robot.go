@@ -22,7 +22,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package skrafl
 
-import "sort"
+import (
+	"math/rand"
+	"sort"
+)
 
 // Robot is an interface for automatic players that implement
 // a playing strategy to pick a move given a list of legal tile
@@ -48,6 +51,11 @@ func (rw *RobotWrapper) GenerateMove(state *GameState) Move {
 // if there is no valid tile move, or passes if exchange is not
 // allowed.
 type HighScoreRobot struct {
+}
+
+// OneOfNBestRobot picks one of the N highest-scoring moves at random.
+type OneOfNBestRobot struct {
+	N int
 }
 
 // Implement a strategy for sorting move lists by score
@@ -90,4 +98,32 @@ func (robot *HighScoreRobot) PickMove(state *GameState, moves []Move) Move {
 // NewHighScoreRobot returns a fresh instance of a HighestScoreRobot
 func NewHighScoreRobot() *RobotWrapper {
 	return &RobotWrapper{&HighScoreRobot{}}
+}
+
+// PickMove for OneOfNBestRobot selects one of the N highest-scoring
+// moves at random, or an exchange move, or a pass move as a last resort
+func (robot *OneOfNBestRobot) PickMove(state *GameState, moves []Move) Move {
+	if len(moves) > 0 {
+		// Sort by score
+		sort.Sort(byScore{state, moves})
+		// Cut the list down to N, if it is longer than that
+		if len(moves) > robot.N {
+			moves = moves[:robot.N]
+		}
+		// Pick a move by random from the remaining list
+		pick := rand.Intn(len(moves))
+		return moves[pick]
+	}
+	// No valid tile moves
+	if !state.exchangeForbidden {
+		// Exchange all tiles, since that is allowed
+		return NewExchangeMove(state.Rack.AsString())
+	}
+	// Exchange forbidden: Return a pass move
+	return NewPassMove()
+}
+
+// NewOneOfNBestRobot returns a fresh instance of a OneOfNBestRobot
+func NewOneOfNBestRobot(n int) *RobotWrapper {
+	return &RobotWrapper{&OneOfNBestRobot{N: n}}
 }

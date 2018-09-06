@@ -18,13 +18,13 @@ The GoSkrafl package encompasses the whole game lifecycle, board, rack and bag
 management, move validation, scoring, word and cross-word checks, as well as
 **robot players**.
 
-The robot players make good use of Go's **goroutines** to evaluate all valid
+The robot players make good use of Go's **goroutines** to discover valid
 moves concurrently, employing all available processor cores for
 **parallel execution** of multiple worker threads. This, coupled with Go's
 compilation to native machine code, and its efficient memory management,
 makes GoSkrafl quite fast. (As an order of magnitude, it runs at
-approximately **25 simulated TWL06 games per second** on a quad-core
-Intel i7-4400 processor @ 3.4 GHz, or about 40 milliseconds per game.)
+over **25 simulated TWL06 games per second** on a quad-core
+Intel i7-4400 processor @ 3.4 GHz, or less than 40 milliseconds per game.)
 
 The design and code of GoSkrafl borrow heavily from a battle-hardened
 [SCRABBLE(tm) engine in Python](https://github.com/vthorsteinsson/Netskrafl)
@@ -32,7 +32,7 @@ by the same author.
 
 ### Status
 
-GoSkrafl is currently in Alpha but moving close to Beta.
+GoSkrafl currently has Beta status.
 
 ### Example
 

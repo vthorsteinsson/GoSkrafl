@@ -16,7 +16,10 @@ import (
 type GameConstructor func() *skrafl.Game
 
 // Generate a sequence of moves and responses
-func simulateGame(gameConstructor GameConstructor, robot *skrafl.RobotWrapper, verbose bool) {
+func simulateGame(gameConstructor GameConstructor,
+	robotA *skrafl.RobotWrapper, robotB *skrafl.RobotWrapper,
+	verbose bool) (scoreA, scoreB int) {
+
 	// Wrap fmt.Printf
 	var p func(string, ...interface{}) (int, error)
 	if verbose {
@@ -29,14 +32,22 @@ func simulateGame(gameConstructor GameConstructor, robot *skrafl.RobotWrapper, v
 	p("%v\n", game)
 	for i := 0; ; i++ {
 		state := game.State()
-		move := robot.GenerateMove(state)
+		var move skrafl.Move
+		// Ask robotA or robotB to generate a move
+		if i%2 == 0 {
+			move = robotA.GenerateMove(state)
+		} else {
+			move = robotB.GenerateMove(state)
+		}
 		game.ApplyValid(move)
 		p("%v\n", game)
 		if game.IsOver() {
-			p("Game over!\n")
+			p("Game over!\n\n")
 			break
 		}
 	}
+	scoreA, scoreB = game.Scores[0], game.Scores[1]
+	return // scoreA, scoreB
 }
 
 func main() {
@@ -57,8 +68,22 @@ func main() {
 		fmt.Printf("Unknown dictionary '%v'. Specify one of 'twl06', 'sowpods' or 'ice'.\n", *dict)
 		os.Exit(1)
 	}
-	robot := skrafl.NewHighScoreRobot()
+	robotA := skrafl.NewHighScoreRobot()
+	robotB := skrafl.NewHighScoreRobot()
+	// robotB := skrafl.NewOneOfNBestRobot(10) // Picks one of 10 best moves
+	var winsA, winsB int
 	for i := 0; i < *num; i++ {
-		simulateGame(gameConstructor, robot, !*quiet)
+		scoreA, scoreB := simulateGame(gameConstructor, robotA, robotB, !*quiet)
+		if scoreA > scoreB {
+			winsA++
+		} else {
+			if scoreB > scoreA {
+				winsB++
+			}
+		}
 	}
+	fmt.Printf("%v games were played using the '%v' dictionary.\n"+
+		"Robot A won %v games, and Robot B won %v games; %v games were draws.\n",
+		*num, *dict,
+		winsA, winsB, *num-winsA-winsB)
 }
