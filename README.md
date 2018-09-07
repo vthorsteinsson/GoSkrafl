@@ -32,7 +32,19 @@ by the same author.
 
 ### Status
 
-GoSkrafl currently has Beta status.
+GoSkrafl is currently in Beta. Issues and pull requests are welcome.
+
+### Adding new dictionaries
+
+To add support for a new dictionary, assemble the word list in a UTF-8 text file,
+with all words in lower case, one word per line. Use the
+[DAWG builder from Netskrafl](https://github.com/vthorsteinsson/Netskrafl/blob/singlepage/dawgbuilder.py)
+to build a `.bin.dawg` file.
+Copy it to the `/GoSkrafl/dicts/` directory, then add a snippet of
+code at the bottom of `dawg.go` to wrap it in an instance of the `Dawg` class. Remember to
+add an alphabet string as well, cf. the `IcelandicAlphabet` and `EnglishAlphabet` variables.
+The same alphabet string must be used for the encoding in `dawgbuilder.py`. Post an issue if
+you need help.
 
 ### Example
 
