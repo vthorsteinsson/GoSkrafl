@@ -1,8 +1,8 @@
 // movegen.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
+
 // This file contains code to generate all valid tile moves
 // on a SCRABBLE(tm) board, given a player's rack.
-// It is a part of the Go 'skrafl' package.
 
 /*
 
@@ -47,29 +47,29 @@ a covered square within the axis is a potential anchor square.
 Each anchor square is examined in turn, from "left" to "right".
 The algorithm roughly proceeds as follows:
 
-1) Count the number of empty non-anchor squares to the left of
+1) 	Count the number of empty non-anchor squares to the left of
 	the anchor, which may be zero. Call the number 'maxleft'.
-2) Generate all permutations of rack tiles found by navigating
+2) 	Generate all permutations of rack tiles found by navigating
 	from the root of the DAWG, of length 1..maxleft, i.e. all
 	possible word beginnings from the rack. (We calculate these
 	permutation lists only once for the entire move generation
 	phase.)
-3) For each such permutation, attempt to complete the
+3) 	For each such permutation, attempt to complete the
 	word by placing the rest of the available tiles on the
 	anchor square and to its right.
-4) In any case, even if maxleft=0, place a starting tile on the
+4) 	In any case, even if maxleft=0, place a starting tile on the
 	anchor square and attempt to complete a word to its right.
-5) When placing a tile on the anchor square or to its right,
+5) 	When placing a tile on the anchor square or to its right,
 	do so under three constraints: (a) the cross-check
 	set of the square in question; (b) that there is
 	a path in the DAWG corresponding to the tiles that have
 	been laid down so far, incl. step 2 and 3; (c) a matching
 	tile is still available in the rack (with blank tiles always
 	matching).
-6) If extending to the right and coming to a tile that is
+6) 	If extending to the right and coming to a tile that is
 	already on the board, it must correspond to the DAWG path
 	being followed.
-7) If we are running off the edge of the axis, or have come
+7) 	If we are running off the edge of the axis, or have come
 	to an empty square, and we are at a final node in the
 	DAWG indicating that a word is completed, we have a candidate
 	move. Calculate its score and add it to the list of potential
@@ -495,7 +495,7 @@ func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
 // considering the Board and the player's Rack. The generation works
 // by dividing the task into 30 sub-tasks of finding legal moves within
 // each Axis, i.e. all columns and rows of the board. These sub-tasks
-// are performed concurrently (and hopefully to some degree in parallel)
+// are performed concurrently (and hopefully in parallel to some extent)
 // by 30 goroutines.
 func (state *GameState) GenerateMoves() []Move {
 	rack := state.Rack.AsRunes()

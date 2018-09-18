@@ -1,5 +1,6 @@
 // main.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
+
 // Example main program for exercising the skrafl module
 
 package main

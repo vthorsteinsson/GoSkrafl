@@ -1,5 +1,6 @@
 // navigators.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
+
 // This file contains the Navigator interface and declares
 // a couple of classes that implement it to provide various
 // types of navigation over a DAWG. For instance, there are
@@ -91,13 +92,19 @@ func (nav *Navigation) FromEdge(state *navState, matched string) {
 		// it is now in a final state (i.e. an entire valid word)
 		matched += string(state.prefix[j])
 		j++
+		// Have we just completed an entire word?
 		final := false
 		if j < lenP {
+			// The edge prefix contains a vertical bar ('|') after
+			// the accepted letter: we're at a complete word boundary
 			if state.prefix[j] == '|' {
 				final = true
 				j++
 			}
 		} else {
+			// The prefix is complete: if there is no next node, or if
+			// the next node is marked with a final bit, we're at a
+			// complete word boundary
 			if state.nextNode == 0 || nav.dawg.b[state.nextNode]&0x80 != 0 {
 				final = true
 			}
@@ -108,6 +115,8 @@ func (nav *Navigation) FromEdge(state *navState, matched string) {
 			navigator.Accept(
 				matched,
 				final,
+				// Create a navState that would resume the navigation at our
+				// current location within the prefix, with the same nextNode
 				&navState{prefix: state.prefix[j:], nextNode: state.nextNode},
 			)
 		} else {

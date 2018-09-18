@@ -1,6 +1,8 @@
 // move.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
-// This file implements the Move interface and associated logic
+
+// This file implements the Move interface and associated logic,
+// including the various types of moves and their validation.
 
 /*
 

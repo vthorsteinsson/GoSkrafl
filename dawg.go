@@ -1,5 +1,6 @@
 // dawg.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
+
 // This file implements the Directed Acyclic Word Graph (DAWG)
 // which encodes the dictionary of valid words.
 

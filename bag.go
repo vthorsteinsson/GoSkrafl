@@ -1,6 +1,7 @@
 // bag.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
-// This file contains the Bag logic
+
+// This file contains the Bag and TileSet logic
 
 /*
 

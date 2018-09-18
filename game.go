@@ -1,6 +1,7 @@
 // game.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
-// This file implements the Game class
+
+// This file implements the Game and GameState classes
 
 /*
 

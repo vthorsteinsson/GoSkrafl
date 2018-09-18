@@ -1,5 +1,6 @@
 // board.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
+
 // This file implements the Board and the Racks, together
 // with their Squares and the Tiles that may occupy them
 

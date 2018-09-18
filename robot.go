@@ -1,7 +1,7 @@
 // robot.go
 // Copyright (C) 2018 Vilhjálmur Þorsteinsson
-// This file implements a SCRABBLE(tm) playing robot,
-// and is a part of the Go 'skrafl' package.
+
+// This file implements SCRABBLE(tm) playing robots
 
 /*
 
