@@ -325,6 +325,37 @@ func TestTileMove(t *testing.T) {
 	}
 }
 
+func TestWordCheck(t *testing.T) {
+	game := NewIcelandicGame()
+	if game == nil {
+		t.Errorf("Unable to create a new Icelandic game")
+	}
+	makeMove := func(rackLetters string, word string, row, col int, horizontal bool) bool {
+		player := game.PlayerToMove()
+		rack := &game.Racks[1-player]
+		rack.ReturnToBag(game.Bag)
+		rack = &game.Racks[player]
+		rack.ReturnToBag(game.Bag)
+		if ok := rack.FillByLetters(game.Bag, []rune(rackLetters)); !ok {
+			t.Errorf("Unable to draw specific letters from bag")
+		}
+		tiles := rack.FindTiles([]rune(word))
+		return game.MakeTileMove(row, col, horizontal, tiles)
+	}
+	if !makeMove("prófaðu", "prófaðu", 5, 7, false) {
+		t.Errorf("Valid tile move rejected")
+	}
+	if !makeMove("akurhái", "akur", 10, 6, false) {
+		t.Errorf("Valid tile move rejected")
+	}
+	if !makeMove("hálarsx", "al", 10, 8, false) {
+		t.Errorf("Valid tile move rejected")
+	}
+	if makeMove("nálarsx", "ns", 10, 9, false) {
+		t.Errorf("Invalid tile move accepted")
+	}
+}
+
 func TestFindLeftParts(t *testing.T) {
 	// Find left parts
 	game := NewIcelandicGame()

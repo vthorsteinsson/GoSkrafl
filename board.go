@@ -478,6 +478,28 @@ func (rack *Rack) FindTile(letter rune) *Tile {
 	return nil
 }
 
+// FindTiles finds tiles corresponding to the given letters (or '?')
+// in the rack and returns a list. If tiles are not found in the rack,
+// they are not included in the result. Note that the same tile is
+// not returned twice, even if a particular letter is requested twice.
+func (rack *Rack) FindTiles(letters []rune) []*Tile {
+	if rack == nil {
+		return nil
+	}
+	result := make([]*Tile, 0, len(letters))
+	var picked [RackSize]bool
+	for _, letter := range letters {
+		for i := 0; i < RackSize; i++ {
+			if sq := &rack.Slots[i]; !picked[i] && sq.Tile.Letter == letter {
+				result = append(result, sq.Tile)
+				picked[i] = true
+				break
+			}
+		}
+	}
+	return result
+}
+
 // RemoveTile removes a tile from a Rack
 func (rack *Rack) RemoveTile(tile *Tile) bool {
 	if rack == nil || tile == nil {
@@ -495,6 +517,23 @@ func (rack *Rack) RemoveTile(tile *Tile) bool {
 	}
 	// Tile was not found in the rack
 	return false
+}
+
+// ReturnToBag returns the tiles in the Rack to a Bag
+func (rack *Rack) ReturnToBag(bag *Bag) {
+	if rack == nil || bag == nil {
+		return
+	}
+	for i := 0; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		if sq.Tile != nil {
+			// This slot has a tile: remove it and
+			// return it to the bag
+			rack.Letters[sq.Tile.Letter]--
+			bag.ReturnTile(sq.Tile)
+			sq.Tile = nil
+		}
+	}
 }
 
 // Extract obtains the given number of tiles from the rack,
