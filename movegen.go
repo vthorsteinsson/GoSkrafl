@@ -277,7 +277,8 @@ func (ern *ExtendRightNavigator) Accept(matched string, final bool, state *navSt
 			covers[Coordinate{sq.Row, sq.Col}] = Cover{letter, meaning}
 		}
 	}
-	tileMove := NewTileMove(ern.axis.state.Board, covers)
+	// No need to validate robot-generated tile moves
+	tileMove := NewUncheckedTileMove(ern.axis.state.Board, covers)
 	ern.moves = append(ern.moves, tileMove)
 }
 

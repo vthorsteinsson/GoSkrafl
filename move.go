@@ -91,7 +91,17 @@ const BingoBonus = 50
 // Covers, i.e. Tile coverings
 func NewTileMove(board *Board, covers Covers) *TileMove {
 	move := &TileMove{}
-	move.Init(board, covers)
+	move.Init(board, covers, true)
+	return move
+}
+
+// NewUncheckedTileMove creates a new TileMove object with the given
+// Covers, i.e. Tile coverings. In contrast to NewTileMove(), this
+// function does not check that the words formed by the tile move
+// are valid. It is intended for testing purposes.
+func NewUncheckedTileMove(board *Board, covers Covers) *TileMove {
+	move := &TileMove{}
+	move.Init(board, covers, false)
 	return move
 }
 
@@ -112,7 +122,7 @@ const IllegalMoveWord = "[???]"
 
 // Init initializes a TileMove instance for a particular Board
 // using a map of Coordinate to Cover
-func (move *TileMove) Init(board *Board, covers Covers) {
+func (move *TileMove) Init(board *Board, covers Covers, validateWords bool) {
 	move.Covers = covers
 	top, left := BoardSize, BoardSize
 	bottom, right := -1, -1
@@ -144,6 +154,10 @@ func (move *TileMove) Init(board *Board, covers Covers) {
 			len(board.Fragment(top, left, BELOW))
 		move.Horizontal = hcross >= vcross
 	}
+	// By default, words formed by tile moves need to
+	// be validated. However this is turned off when
+	// generating robot moves as they are valid by default.
+	move.ValidateWords = validateWords
 	// Collect the entire word that is being laid down
 	var direction, reverse int
 	if move.Horizontal {

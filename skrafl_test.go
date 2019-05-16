@@ -117,7 +117,12 @@ func TestTileMove(t *testing.T) {
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
 	}
+	// For testing, disable word validation for tile moves
+	game.ValidateWords = false
 	game.SetPlayerNames("Villi", "Gopher")
+	if game.IsOver() {
+		t.Errorf("Game can't be over before it starts")
+	}
 	// Construct a move from the player 0 rack
 	move := game.Racks[0].Extract(4, 'x')
 	if game.MakeTileMove(2, 2, false, move) {
@@ -265,7 +270,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Accepted cover of nonexistent square")
 	}
 	// Horizontal move
-	tileMove = NewTileMove(board,
+	tileMove = NewUncheckedTileMove(board,
 		Covers{
 			{7, 4}:  Cover{tile.Letter, tile.Meaning},
 			{7, 10}: Cover{tile2.Letter, tile2.Meaning},
@@ -279,7 +284,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Move is incorrectly identified as being vertical")
 	}
 	// Vertical move
-	tileMove = NewTileMove(board,
+	tileMove = NewUncheckedTileMove(board,
 		Covers{
 			{7, 4}: Cover{tile.Letter, tile.Meaning},
 			{8, 4}: Cover{tile2.Letter, tile2.Meaning},
@@ -292,7 +297,7 @@ func TestTileMove(t *testing.T) {
 		t.Errorf("Move is incorrectly identified as being horizontal")
 	}
 	// Single cover which creates a vertical move
-	tileMove = NewTileMove(board,
+	tileMove = NewUncheckedTileMove(board,
 		Covers{
 			{8, 7}: Cover{tile.Letter, tile.Meaning},
 		},
@@ -329,6 +334,9 @@ func TestWordCheck(t *testing.T) {
 	game := NewIcelandicGame()
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
+	}
+	if !game.ValidateWords {
+		t.Errorf("Game should validate words in tile moves by default")
 	}
 	makeMove := func(rackLetters string, word string, row, col int, horizontal bool) bool {
 		player := game.PlayerToMove()
@@ -414,6 +422,22 @@ func TestStringify(t *testing.T) {
 	game := NewIcelandicGame()
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
+	}
+	if !game.ForceRack(0, "villiþo") {
+		t.Errorf("Unable to force the rack")
+	}
+	rack := &game.Racks[0]
+	tiles := rack.FindTiles([]rune("vill"))
+	if !game.MakeTileMove(4, 7, false, tiles) {
+		t.Errorf("Unable to make tile move")
+	}
+	if !game.ForceRack(1, "rsteins") {
+		t.Errorf("Unable to force the rack")
+	}
+	rack = &game.Racks[1]
+	tiles = rack.FindTiles([]rune("stein"))
+	if !game.MakeTileMove(8, 6, true, tiles) {
+		t.Errorf("Unable to make tile move")
 	}
 	_ = game.String()
 }

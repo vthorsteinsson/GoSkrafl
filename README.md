@@ -101,7 +101,7 @@ conditions of the GNU GPL v3 license (see below).
 
 *GoSkrafl - a concurrent SCRABBLE(tm) engine and robot, written in Go*
 
-*Copyright (C) 2018 Vilhjálmur Þorsteinsson*
+*Copyright (C) 2019 Vilhjálmur Þorsteinsson*
 
 This set of programs is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

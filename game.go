@@ -47,6 +47,9 @@ type Game struct {
 	// (when 6 consecutive such moves have been made,
 	// the game is over)
 	NumPassMoves int
+	// Whether to validate words formed by tile moves in
+	// the game
+	ValidateWords bool
 }
 
 // GameState contains the bare minimum of information
@@ -82,8 +85,11 @@ func (game *Game) Init(tileSet *TileSet, dawg *Dawg) {
 	game.Bag = makeBag(tileSet)
 	game.Racks[0].Fill(game.Bag)
 	game.Racks[1].Fill(game.Bag)
-	game.MoveList = make([]*MoveItem, 0, 30) // Initial capacity for 30 moves
+	// Initial capacity for 30 moves
+	game.MoveList = make([]*MoveItem, 0, 30)
 	game.Dawg = dawg
+	// By default, we validate words formed by tile moves
+	game.ValidateWords = true
 }
 
 // NewIcelandicGame instantiates a new Game with the Icelandic TileSet
@@ -266,7 +272,13 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 		col += colInc
 	}
 	// Apply a fresh TileMove to the game
-	return game.Apply(NewTileMove(&game.Board, covers))
+	var move Move
+	if game.ValidateWords {
+		move = NewTileMove(&game.Board, covers)
+	} else {
+		move = NewUncheckedTileMove(&game.Board, covers)
+	}
+	return game.Apply(move)
 }
 
 // ApplyValid applies an already validated Move to a Game,
