@@ -421,13 +421,24 @@ func TestBitMaps(t *testing.T) {
 
 func TestStringify(t *testing.T) {
 	// Stringify the game (no test but at least this enhances coverage)
-	game := NewIcelandicGame()
-	if game == nil {
-		t.Errorf("Unable to create a new Icelandic game")
-		return
-	}
-	if !game.ForceRack(0, "villiþo") {
-		t.Errorf("Unable to force the rack")
+	var game *Game
+	for i := 0; ; i++ {
+		game = NewIcelandicGame()
+		if game == nil {
+			t.Errorf("Unable to create a new Icelandic game")
+			return
+		}
+		// Forcing a rack may fail because some of the unique tiles may
+		// be in the opponent's rack. In that case, we just try again.
+		if game.ForceRack(0, "villiþo") {
+			// Success: continue
+			break
+		}
+		if i > 20 {
+			// Something is very likely wrong
+			t.Errorf("Unable to force the rack after 20 attempts")
+			return
+		}
 	}
 	rack := &game.Racks[0]
 	tiles := rack.FindTiles([]rune("vill"))
