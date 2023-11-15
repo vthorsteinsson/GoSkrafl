@@ -210,7 +210,7 @@ func (dawg *Dawg) Init(filePath string, alphabet string) error {
 	dawg.b = make([]byte, size)
 	n, err := f.Read(dawg.b)
 	if err != nil || n < size {
-		return fmt.Errorf("Can't read entire file: '%v'", filePath)
+		return fmt.Errorf("can't read entire file: '%v'", filePath)
 	}
 	// Create the alphabet decoding map
 	dawg.coding = make(Coding)

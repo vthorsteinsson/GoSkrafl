@@ -37,18 +37,21 @@ type Move interface {
 // PassMove is a move that is always valid, has no effect when applied,
 // and has a score of 0
 type PassMove struct {
+	Move
 }
 
 // ExchangeMove is a move that exchanges 1-7 tiles from the player's
 // Rack with the Bag. It is only valid when at least 7 tiles are
 // left in the Bag.
 type ExchangeMove struct {
+	Move
 	Letters string
 }
 
 // FinalMove represents the final adjustments that are made to
 // player scores at the end of a Game
 type FinalMove struct {
+	Move
 	OpponentRack   string
 	MultiplyFactor int
 }
@@ -56,6 +59,7 @@ type FinalMove struct {
 // TileMove represents a normal tile move by a player, where
 // one or more Squares are covered by a Tile from the player's Rack
 type TileMove struct {
+	Move
 	TopLeft     Coordinate
 	BottomRight Coordinate
 	Covers      Covers
@@ -458,11 +462,10 @@ func (move *ExchangeMove) IsValid(game *Game) bool {
 // Apply replenishes the exchanged tiles in the Rack
 // from the Bag
 func (move *ExchangeMove) Apply(game *Game) bool {
-	runes := []rune(move.Letters)
 	rack := &game.Racks[game.PlayerToMove()]
 	tiles := make([]*Tile, 0, RackSize)
 	// First, remove the exchanged tiles from the player's Rack
-	for _, letter := range runes {
+	for _, letter := range move.Letters {
 		tile := rack.FindTile(letter)
 		if tile == nil {
 			// Should not happen!
@@ -514,7 +517,7 @@ func (move *FinalMove) Apply(game *Game) bool {
 // by a multiplication factor that can be 1 or 2
 func (move *FinalMove) Score(state *GameState) int {
 	var adj = 0
-	for _, letter := range []rune(move.OpponentRack) {
+	for _, letter := range move.OpponentRack {
 		adj += state.TileSet.Scores[letter]
 	}
 	return adj * move.MultiplyFactor

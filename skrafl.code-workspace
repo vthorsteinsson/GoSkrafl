@@ -5,6 +5,12 @@
 		}
 	],
 	"settings": {
-		"files.eol": "\n"
+		"files.eol": "\n",
+		"files.exclude": {
+			"**/.vscode": true
+		},
+		"gopls": {
+			"ui.semanticTokens": true
+		}
 	}
 }

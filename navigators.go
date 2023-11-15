@@ -500,7 +500,7 @@ func (lpn *LeftPermutationNavigator) Init(rack string) {
 		lpn.maxLeft = lenRack - 1
 	}
 	lpn.stack = make([]leftPermItem, 0)
-	lpn.leftParts = make([][]*LeftPart, lpn.maxLeft, lpn.maxLeft)
+	lpn.leftParts = make([][]*LeftPart, lpn.maxLeft)
 	for i := 0; i < lpn.maxLeft; i++ {
 		lpn.leftParts[i] = make([]*LeftPart, 0)
 	}

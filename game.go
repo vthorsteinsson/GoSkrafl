@@ -128,17 +128,27 @@ func NewSowpodsGame() *Game {
 	return game
 }
 
+func NewState(dawg *Dawg, tileSet *TileSet, board *Board, rack *Rack, bagSize int) *GameState {
+	return &GameState{
+		Dawg:              dawg,
+		TileSet:           tileSet,
+		Board:             board,
+		Rack:              rack,
+		exchangeForbidden: bagSize < RackSize,
+	}
+}
+
 // State returns a new GameState instance describing the state of the
 // game in a minimal manner so that a robot player can decide on a move
 func (game *Game) State() *GameState {
 	player := game.PlayerToMove()
-	return &GameState{
-		Dawg:              game.Dawg,
-		TileSet:           game.TileSet,
-		Board:             &game.Board,
-		Rack:              &game.Racks[player],
-		exchangeForbidden: !game.Bag.ExchangeAllowed(),
-	}
+	return NewState(
+		game.Dawg,
+		game.TileSet,
+		&game.Board,
+		&game.Racks[player],
+		game.Bag.TileCount(),
+	)
 }
 
 // TileAt is a convenience function for returning the Tile at
@@ -362,11 +372,8 @@ func (game *Game) IsOver() bool {
 		return true
 	}
 	lastPlayer := 1 - (ix % 2)
-	if game.Racks[lastPlayer].IsEmpty() {
-		// The last player's move emptied her rack
-		return true
-	}
-	return false
+	// The game is over if the last player's move emptied her rack
+	return game.Racks[lastPlayer].IsEmpty()
 }
 
 // String returns a string representation of a Game

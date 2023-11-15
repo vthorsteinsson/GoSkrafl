@@ -22,7 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package skrafl
 
 import (
-	"math/rand"
 	"strings"
 	"testing"
 )
@@ -116,6 +115,7 @@ func TestTileMove(t *testing.T) {
 	game := NewIcelandicGame()
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
+		return
 	}
 	// For testing, disable word validation for tile moves
 	game.ValidateWords = false
@@ -334,6 +334,7 @@ func TestWordCheck(t *testing.T) {
 	game := NewIcelandicGame()
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
+		return
 	}
 	if !game.ValidateWords {
 		t.Errorf("Game should validate words in tile moves by default")
@@ -369,6 +370,7 @@ func TestFindLeftParts(t *testing.T) {
 	game := NewIcelandicGame()
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
+		return
 	}
 	rack := game.Racks[game.PlayerToMove()].AsString()
 	leftParts := FindLeftParts(game.Dawg, rack)
@@ -422,6 +424,7 @@ func TestStringify(t *testing.T) {
 	game := NewIcelandicGame()
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
+		return
 	}
 	if !game.ForceRack(0, "villiþo") {
 		t.Errorf("Unable to force the rack")
@@ -445,7 +448,7 @@ func TestStringify(t *testing.T) {
 func BenchmarkRobot(b *testing.B) {
 
 	// Try to make the benchmark as deterministic as possible
-	rand.Seed(31743) // Commodore Basic 4.0 / 31743 bytes free / ready.
+	// rand.Seed(31743) // Commodore Basic 4.0 / 31743 bytes free / ready.
 
 	// Generate a sequence of moves and responses
 	simulateGame := func(robot *RobotWrapper) {

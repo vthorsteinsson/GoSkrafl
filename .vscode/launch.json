@@ -9,13 +9,13 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "remotePath": "",
-            "port": 2345,
-            "host": "127.0.0.1",
-            "program": "${fileDirname}",
+            // "host": "127.0.0.1",
+            // "port": 2345,
+            "program": "${workspaceFolder}/main/main.go",
             "env": {},
-            "args": [],
-            "showLog": false
+            "args": ["-s"],
+            "showLog": false,
+            "debugAdapter": "dlv-dap"
         }
     ]
 }

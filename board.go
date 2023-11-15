@@ -123,11 +123,7 @@ func (rack *Rack) Fill(bag *Bag) bool {
 			// Got a new tile in the rack:
 			// increment the letter's count in the rack map
 			letter := sq.Tile.Letter
-			if _, ok := rack.Letters[letter]; ok {
-				rack.Letters[letter]++
-			} else {
-				rack.Letters[letter] = 1
-			}
+			rack.Letters[letter]++
 		} else {
 			// Can't fill all empty slots: return false
 			return false
@@ -156,11 +152,7 @@ func (rack *Rack) FillByLetters(bag *Bag, letters []rune) bool {
 		// Got a new tile in the rack:
 		// increment the letter's count in the rack map
 		letter := sq.Tile.Letter
-		if _, ok := rack.Letters[letter]; ok {
-			rack.Letters[letter]++
-		} else {
-			rack.Letters[letter] = 1
-		}
+		rack.Letters[letter]++
 	}
 	// Could fill rack as far as possible according to the letters array
 	return true
@@ -315,53 +307,54 @@ func (board *Board) CrossWords(row, col int, horizontal bool) (left, right strin
 	return // left, right
 }
 
+var WORD_MULTIPLIERS = [BoardSize]string{
+	"311111131111113",
+	"121111111111121",
+	"112111111111211",
+	"111211111112111",
+	"111121111121111",
+	"111111111111111",
+	"111111111111111",
+	"311111121111113",
+	"111111111111111",
+	"111111111111111",
+	"111121111121111",
+	"111211111112111",
+	"112111111111211",
+	"121111111111121",
+	"311111131111113",
+}
+
+var LETTER_MULTIPLIERS = [BoardSize]string{
+	"111211111112111",
+	"111113111311111",
+	"111111212111111",
+	"211111121111112",
+	"111111111111111",
+	"131113111311131",
+	"112111212111211",
+	"111211111112111",
+	"112111212111211",
+	"131113111311131",
+	"111111111111111",
+	"211111121111112",
+	"111111212111111",
+	"111113111311111",
+	"111211111112111",
+}
+
+const zero = int('0')
+
 // Init initializes an empty board
 func (board *Board) Init() {
 
-	var wordMultipliers = [BoardSize]string{
-		"311111131111113",
-		"121111111111121",
-		"112111111111211",
-		"111211111112111",
-		"111121111121111",
-		"111111111111111",
-		"111111111111111",
-		"311111121111113",
-		"111111111111111",
-		"111111111111111",
-		"111121111121111",
-		"111211111112111",
-		"112111111111211",
-		"121111111111121",
-		"311111131111113",
-	}
-
-	var letterMultipliers = [BoardSize]string{
-		"111211111112111",
-		"111113111311111",
-		"111111212111111",
-		"211111121111112",
-		"111111111111111",
-		"131113111311131",
-		"112111212111211",
-		"111211111112111",
-		"112111212111211",
-		"131113111311131",
-		"111111111111111",
-		"211111121111112",
-		"111111212111111",
-		"111113111311111",
-		"111211111112111",
-	}
-
-	const zero = int('0')
 	for i := 0; i < BoardSize; i++ {
 		for j := 0; j < BoardSize; j++ {
 			sq := board.Sq(i, j)
 			sq.Row = i
 			sq.Col = j
-			sq.LetterMultiplier = int(letterMultipliers[i][j]) - zero
-			sq.WordMultiplier = int(wordMultipliers[i][j]) - zero
+			sq.LetterMultiplier = int(LETTER_MULTIPLIERS[i][j]) - zero
+			sq.WordMultiplier = int(WORD_MULTIPLIERS[i][j]) - zero
 		}
 	}
 	// Initialize the cached matrix of adjacent square lists
@@ -388,12 +381,18 @@ func (board *Board) Init() {
 	}
 }
 
+func NewBoard() *Board {
+	board := &Board{}
+	board.Init()
+	return board
+}
+
 // Init initializes an empty rack
 func (rack *Rack) Init() {
 	// Make an empty letter map
 	rack.Letters = make(map[rune]int)
 	// Initialize empty rack slots
-	for i := 0; i < RackSize; i++ {
+	for i := range rack.Slots {
 		sq := &rack.Slots[i]
 		sq.Row = -1
 		sq.Col = i
@@ -402,11 +401,42 @@ func (rack *Rack) Init() {
 	}
 }
 
+// Create a rack containing the tiles specified in the string r,
+// with '?' denoting the blank tile
+func NewRack(r string, tileSet *TileSet) *Rack {
+	rack := &Rack{Letters: make(map[rune]int)}
+	// Initialize rack slots
+	slot := 0
+	for _, letter := range r {
+		sq := &rack.Slots[slot]
+		sq.Row = -1
+		sq.Col = slot
+		sq.LetterMultiplier = 1
+		sq.WordMultiplier = 1
+		sq.Tile = &Tile{
+			Letter:  letter,
+			Meaning: letter,
+			Score:   tileSet.Scores[letter],
+		}
+		rack.Letters[letter]++
+		slot++
+	}
+	// Fill in the rest of the rack, if not already full
+	for i := slot; i < RackSize; i++ {
+		sq := &rack.Slots[i]
+		sq.Row = -1
+		sq.Col = i
+		sq.LetterMultiplier = 1
+		sq.WordMultiplier = 1
+	}
+	return rack
+}
+
 // String returns a printable string representation of a Rack
 func (rack *Rack) String() string {
 	var sb strings.Builder
-	for i := 0; i < RackSize; i++ {
-		sb.WriteString(fmt.Sprintf("%v ", &rack.Slots[i]))
+	for _, sq := range rack.Slots {
+		sb.WriteString(fmt.Sprintf("%v ", &sq))
 	}
 	return sb.String()
 }
@@ -414,8 +444,7 @@ func (rack *Rack) String() string {
 // AsRunes returns the tiles in the Rack as a list of runes
 func (rack *Rack) AsRunes() []rune {
 	runes := make([]rune, 0, RackSize)
-	for i := 0; i < RackSize; i++ {
-		sq := &rack.Slots[i]
+	for _, sq := range rack.Slots {
 		if sq.Tile != nil {
 			runes = append(runes, sq.Tile.Letter)
 		}
@@ -440,8 +469,7 @@ func (rack *Rack) HasTile(tile *Tile) bool {
 	if rack == nil || tile == nil {
 		return false
 	}
-	for i := 0; i < RackSize; i++ {
-		sq := &rack.Slots[i]
+	for _, sq := range rack.Slots {
 		if sq.Tile == tile {
 			return true
 		}
@@ -454,8 +482,7 @@ func (rack *Rack) IsEmpty() bool {
 	if rack == nil {
 		return true
 	}
-	for i := 0; i < RackSize; i++ {
-		sq := &rack.Slots[i]
+	for _, sq := range rack.Slots {
 		if sq.Tile != nil {
 			return false
 		}
@@ -469,8 +496,7 @@ func (rack *Rack) FindTile(letter rune) *Tile {
 	if rack == nil {
 		return nil
 	}
-	for i := 0; i < RackSize; i++ {
-		sq := &rack.Slots[i]
+	for _, sq := range rack.Slots {
 		if sq.Tile != nil && sq.Tile.Letter == letter {
 			return sq.Tile
 		}
@@ -489,8 +515,8 @@ func (rack *Rack) FindTiles(letters []rune) []*Tile {
 	result := make([]*Tile, 0, len(letters))
 	var picked [RackSize]bool
 	for _, letter := range letters {
-		for i := 0; i < RackSize; i++ {
-			if sq := &rack.Slots[i]; !picked[i] && sq.Tile.Letter == letter {
+		for i, sq := range rack.Slots {
+			if !picked[i] && sq.Tile != nil && sq.Tile.Letter == letter {
 				result = append(result, sq.Tile)
 				picked[i] = true
 				break
@@ -505,7 +531,7 @@ func (rack *Rack) RemoveTile(tile *Tile) bool {
 	if rack == nil || tile == nil {
 		return false
 	}
-	for i := 0; i < RackSize; i++ {
+	for i := range rack.Slots {
 		sq := &rack.Slots[i]
 		if sq.Tile == tile {
 			// Found the slot with the tile:
@@ -524,7 +550,7 @@ func (rack *Rack) ReturnToBag(bag *Bag) {
 	if rack == nil || bag == nil {
 		return
 	}
-	for i := 0; i < RackSize; i++ {
+	for i := range rack.Slots {
 		sq := &rack.Slots[i]
 		if sq.Tile != nil {
 			// This slot has a tile: remove it and
