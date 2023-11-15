@@ -9,8 +9,6 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            // "host": "127.0.0.1",
-            // "port": 2345,
             "program": "${workspaceFolder}/main/main.go",
             "env": {},
             "args": ["-s"],

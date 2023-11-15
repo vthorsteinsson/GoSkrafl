@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"unicode"
 
 	skrafl "github.com/vthorsteinsson/GoSkrafl"
 )
@@ -54,106 +53,18 @@ func simulateGame(gameConstructor GameConstructor,
 	return // scoreA, scoreB
 }
 
-// A class describing incoming requests
-type SkraflRequest struct {
-	Dictionary string   `json:"dictionary"`
-	Board      []string `json:"board"`
-	Rack       string   `json:"rack"`
-	BagSize    int      `json:"bag_size"`
-}
-
 func handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-
-	var req SkraflRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	var req skrafl.SkraflRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		// Not valid JSON
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	tileSet := skrafl.NewIcelandicTileSet
-	dawg := skrafl.IcelandicDictionary
-
-	switch req.Dictionary {
-	case "twl06":
-		tileSet = skrafl.EnglishTileSet
-		dawg = skrafl.Twl06Dictionary
-	case "sowpods":
-		tileSet = skrafl.EnglishTileSet
-		dawg = skrafl.SowpodsDictionary
-	case "ice":
-		// Already set
-	// TODO: Add Polish dictionary
-	default:
-		msg := fmt.Sprintf("Unknown dictionary '%v'. Specify one of 'twl06', 'sowpods' or 'ice'.\n", req.Dictionary)
-		http.Error(w, msg, http.StatusBadRequest)
-		return
-	}
-
-	if len(req.Board) != 15 {
-		msg := "Invalid board. Must be 15 rows.\n"
-		http.Error(w, msg, http.StatusBadRequest)
-		return
-	}
-
-	board := skrafl.NewBoard()
-	for r, rowString := range req.Board {
-		row := []rune(rowString)
-		if len(row) != 15 {
-			msg := fmt.Sprintf("Invalid board row (#%v). Must be 15 characters long.\n", r)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
-		}
-		for c, letter := range row {
-			if letter != '.' && letter != ' ' {
-				meaning := letter
-				score := 0
-				// Uppercase letters represent
-				// blank tiles that have been assigned a letter;
-				// convert these to lowercase letters and
-				// give them a score of 0
-				if unicode.IsUpper(letter) {
-					meaning = unicode.ToLower(letter)
-					letter = '?'
-				} else {
-					score = tileSet.Scores[letter]
-				}
-				t := &skrafl.Tile{
-					Letter:  letter,
-					Meaning: meaning,
-					Score:   score,
-				}
-				board.Sq(r, c).Tile = t
-			}
-		}
-	}
-
-	// Parse the rack
-	rack := skrafl.NewRack(req.Rack, tileSet)
-
-	// Create a GameState object, then find the valid moves
-	state := skrafl.NewState(
-		dawg,
-		tileSet,
-		board,
-		rack,
-		req.BagSize,
-	)
-
-	// Generate all valid moves
-	moves := state.GenerateMoves()
-
-	// Return the result as JSON
-	err = json.NewEncoder(w).Encode(moves)
-	if err != nil {
-		// Not valid JSON
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
+	skrafl.HandleRequest(w, req)
 }
 
 func runServer() {

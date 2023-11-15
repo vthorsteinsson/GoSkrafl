@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package skrafl
 
 import (
+	"encoding/json"
 	"strings"
 )
 
@@ -32,6 +33,8 @@ type Move interface {
 	IsValid(*Game) bool
 	Apply(*Game) bool
 	Score(*GameState) int
+	// Marshal to JSON, including a score
+	Marshal(score int) ([]byte, error)
 }
 
 // PassMove is a move that is always valid, has no effect when applied,
@@ -109,16 +112,34 @@ func NewUncheckedTileMove(board *Board, covers Covers) *TileMove {
 	return move
 }
 
-// String return a string description of a TileMove
-func (move *TileMove) String() string {
-	// TODO: This returns only the coordinates of the move
+// Return the coordinate of a tile move
+func (move *TileMove) Coordinate() string {
 	var coord string
 	if move.Horizontal {
 		coord = rowIds[move.TopLeft.Row] + colIds[move.TopLeft.Col]
 	} else {
 		coord = colIds[move.TopLeft.Col] + rowIds[move.TopLeft.Row]
 	}
-	return coord + " " + move.Word
+	return coord
+}
+
+// Return a string description of a tile move
+func (move *TileMove) String() string {
+	return move.Coordinate() + " " + move.Word
+}
+
+func (move *TileMove) Marshal(score int) ([]byte, error) {
+	type TileJson struct {
+		Coordinate string `json:"co"`
+		Word       string `json:"w"`
+		Score      int    `json:"sc"`
+	}
+	j := TileJson{
+		Coordinate: move.Coordinate(),
+		Word:       move.Word,
+		Score:      score,
+	}
+	return json.Marshal(j)
 }
 
 // IllegalMoveWord is the move.Word of an illegal move
