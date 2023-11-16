@@ -153,6 +153,11 @@ func makeBag(tileSet *TileSet) *Bag {
 	return bag
 }
 
+func (tileSet *TileSet) Contains(letter rune) bool {
+	_, ok := tileSet.Scores[letter]
+	return ok
+}
+
 // DrawTile pops one tile from the (randomized) bag
 // and returns it
 func (bag *Bag) DrawTile() *Tile {

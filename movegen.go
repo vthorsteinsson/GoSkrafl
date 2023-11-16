@@ -320,8 +320,7 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 	}
 	// Mark all empty squares having at least one occupied
 	// adjacent square as anchors
-	for i := 0; i < BoardSize; i++ {
-		sq := axis.sq[i]
+	for i, sq := range axis.sq {
 		if sq.Tile != nil {
 			// Already have a tile here: not an anchor and no
 			// cross-check set needed

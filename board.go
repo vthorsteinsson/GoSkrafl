@@ -99,8 +99,8 @@ func (square *Square) String() string {
 // colIds are the column identifiers of a board
 var colIds = [BoardSize]string{
 	"1", "2", "3", "4", "5",
-	"6", "7", "8", "9", "0",
-	"1", "2", "3", "4", "5",
+	"6", "7", "8", "9", "10",
+	"11", "12", "13", "14", "15",
 }
 
 // rowIds are the row identifiers of a board
@@ -184,18 +184,31 @@ func (board *Board) TileAt(row, col int) *Tile {
 	return board.Squares[row][col].Tile
 }
 
+// Place a tile in a board square, if it is empty
+func (board *Board) PlaceTile(row, col int, tile *Tile) bool {
+	sq := board.Sq(row, col)
+	if sq == nil {
+		return false
+	}
+	sq.Tile = tile
+	board.NumTiles++
+	return true
+}
+
 // String represents a Board as a string
 func (board *Board) String() string {
 	var sb strings.Builder
 	sb.WriteString("  ")
 	for i := 0; i < BoardSize; i++ {
-		sb.WriteString(colIds[i] + " ")
+		// Print the column id right-justified in a 2-character field,
+		// plus a space, making the column 3 characters wide
+		sb.WriteString(fmt.Sprintf("%2s ", colIds[i]))
 	}
 	sb.WriteString("\n")
 	for i := 0; i < BoardSize; i++ {
 		sb.WriteString(fmt.Sprintf("%s ", rowIds[i]))
 		for j := 0; j < BoardSize; j++ {
-			sb.WriteString(fmt.Sprintf("%v ", board.Sq(i, j)))
+			sb.WriteString(fmt.Sprintf(" %v ", board.Sq(i, j)))
 		}
 		sb.WriteString("\n")
 	}

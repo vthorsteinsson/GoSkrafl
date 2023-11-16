@@ -185,8 +185,7 @@ func (game *Game) PlayTile(tile *Tile, row, col int) bool {
 		tile.Meaning = tile.Letter
 	}
 	tile.PlayedBy = playerToMove
-	sq.Tile = tile
-	game.Board.NumTiles++
+	game.Board.PlaceTile(row, col, tile)
 	return true
 }
 

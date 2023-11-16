@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"unicode"
 )
 
@@ -90,12 +91,21 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 				} else {
 					score = tileSet.Scores[letter]
 				}
+				if !tileSet.Contains(letter) {
+					msg := fmt.Sprintf("Invalid letter '%c' at %v,%v.\n", letter, r, c)
+					http.Error(w, msg, http.StatusBadRequest)
+					return
+				}
 				t := &Tile{
 					Letter:  letter,
 					Meaning: meaning,
 					Score:   score,
 				}
-				board.Sq(r, c).Tile = t
+				if ok := board.PlaceTile(r, c, t); !ok {
+					// Should not happen, and if it does, it's a serious bug,
+					// so no point in continuing
+					panic(fmt.Sprintf("Square already occupied: %v,%v", r, c))
+				}
 			}
 		}
 	}
@@ -103,7 +113,7 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	// Parse the incoming rack string
 	rack := NewRack(req.Rack, tileSet)
 
-	// Create a GameState object, then find the valid moves
+	// Create a fresh GameState object, then find the valid moves
 	state := NewState(
 		dawg,
 		tileSet,
@@ -121,6 +131,10 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 			Score: move.Score(state),
 		}
 	}
+	// Sort the movesWithScores list in descending order by Score
+	sort.Slice(movesWithScores, func(i, j int) bool {
+		return movesWithScores[i].Score > movesWithScores[j].Score
+	})
 
 	// Return the result as JSON
 	result := HeaderJson{
