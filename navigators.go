@@ -1,5 +1,5 @@
 // navigators.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file contains the Navigator interface and declares
 // a couple of classes that implement it to provide various
@@ -37,7 +37,7 @@ import (
 type Navigator interface {
 	IsAccepting() bool
 	Accepts(rune) bool
-	Accept(matched string, final bool, state *navState)
+	Accept(matched []rune, final bool, state *navState)
 	PushEdge(rune) bool
 	PopEdge() bool
 	Done()
@@ -58,7 +58,7 @@ type Navigation struct {
 // FromNode continues a navigation from a node in the Dawg,
 // enumerating through outgoing edges until the navigator is
 // satisfied
-func (nav *Navigation) FromNode(offset uint32, matched string) {
+func (nav *Navigation) FromNode(offset uint32, matched []rune) {
 	iter := nav.dawg.iterNode(offset)
 	for i := 0; i < len(*iter); i++ {
 		state := &((*iter)[i])
@@ -77,10 +77,17 @@ func (nav *Navigation) FromNode(offset uint32, matched string) {
 // FromEdge navigates along an edge in the Dawg. An edge
 // consists of a prefix string, which may be longer than
 // one letter.
-func (nav *Navigation) FromEdge(state *navState, matched string) {
+func (nav *Navigation) FromEdge(state *navState, alreadyMatched []rune) {
 	lenP := len(state.prefix)
 	j := 0
 	navigator := nav.navigator
+	// Copy the alreadyMatched rune slice into a new rune slice
+	var matched []rune
+	numMatched := len(alreadyMatched)
+	if numMatched > 0 {
+		matched = make([]rune, numMatched, numMatched+lenP)
+		copy(matched, alreadyMatched)
+	}
 	for j < lenP && navigator.IsAccepting() {
 		if !navigator.Accepts(state.prefix[j]) {
 			// The navigator doesn't want this prefix letter:
@@ -90,7 +97,7 @@ func (nav *Navigation) FromEdge(state *navState, matched string) {
 		// The navigator wants this prefix letter:
 		// add it to the matched prefix and find out whether
 		// it is now in a final state (i.e. an entire valid word)
-		matched += string(state.prefix[j])
+		matched = append(matched, state.prefix[j])
 		j++
 		// Have we just completed an entire word?
 		final := false
@@ -141,7 +148,7 @@ func (nav *Navigation) Go(dawg *Dawg, navigator Navigator) {
 	nav.navigator = navigator
 	if navigator.IsAccepting() {
 		// Leave our home harbor and set sail for the open seas
-		nav.FromNode(0, "")
+		nav.FromNode(0, []rune{})
 	}
 	navigator.Done()
 }
@@ -149,7 +156,7 @@ func (nav *Navigation) Go(dawg *Dawg, navigator Navigator) {
 // Resume continues a navigation on the underlying Dawg
 // using the given Navigator, from a previously saved navigation
 // state
-func (nav *Navigation) Resume(dawg *Dawg, navigator Navigator, state *navState, matched string) {
+func (nav *Navigation) Resume(dawg *Dawg, navigator Navigator, state *navState, matched []rune) {
 	if nav == nil || dawg == nil || navigator == nil || state == nil {
 		return
 	}
@@ -216,7 +223,7 @@ func (fn *FindNavigator) Accepts(chr rune) bool {
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (fn *FindNavigator) Accept(matched string, final bool, state *navState) {
+func (fn *FindNavigator) Accept(matched []rune, final bool, state *navState) {
 	if final && fn.index == fn.lenWord {
 		// This is a whole word (final=true) and matches our
 		// length, so that's it
@@ -294,11 +301,11 @@ func (pn *PermutationNavigator) Accepts(chr rune) bool {
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (pn *PermutationNavigator) Accept(matched string, final bool, state *navState) {
-	if final && len([]rune(matched)) >= pn.minLen {
+func (pn *PermutationNavigator) Accept(matched []rune, final bool, state *navState) {
+	if final && len(matched) >= pn.minLen {
 		// This is a full word (final=true) and the number of letters
 		// is above the minimum limit: add it to the results
-		pn.results = append(pn.results, matched)
+		pn.results = append(pn.results, string(matched))
 	}
 }
 
@@ -381,10 +388,10 @@ func (mn *MatchNavigator) Accepts(chr rune) bool {
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (mn *MatchNavigator) Accept(matched string, final bool, state *navState) {
+func (mn *MatchNavigator) Accept(matched []rune, final bool, state *navState) {
 	if final && mn.index == mn.lenP {
 		// Entire pattern match
-		mn.results = append(mn.results, matched)
+		mn.results = append(mn.results, string(matched))
 	}
 }
 
@@ -446,7 +453,7 @@ func (lfn *LeftFindNavigator) Accepts(chr rune) bool {
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (lfn *LeftFindNavigator) Accept(matched string, final bool, state *navState) {
+func (lfn *LeftFindNavigator) Accept(matched []rune, final bool, state *navState) {
 	if lfn.index == lfn.lenP {
 		// Found the whole left part; save its position (state)
 		lfn.state = state
@@ -457,7 +464,7 @@ func (lfn *LeftFindNavigator) Accept(matched string, final bool, state *navState
 // possible with a particular rack, and accumulates them by length.
 // This is done once at the start of move generation.
 type LeftPermutationNavigator struct {
-	rack      string
+	rack      []rune
 	stack     []leftPermItem
 	maxLeft   int
 	leftParts [][]*LeftPart
@@ -465,7 +472,7 @@ type LeftPermutationNavigator struct {
 }
 
 type leftPermItem struct {
-	rack  string
+	rack  []rune
 	index int
 }
 
@@ -473,26 +480,32 @@ type leftPermItem struct {
 // left part within the DAWG, so we can resume navigation from that
 // point to complete an anchor square followed by a right part
 type LeftPart struct {
-	matched string
-	rack    string
+	matched []rune
+	rack    []rune
 	state   *navState
 }
 
 // String returns a string representation of a LeftPart, for debugging purposes
 func (lp *LeftPart) String() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("LeftPart: matched '%v' from rack '%v", lp.matched, lp.rack))
+	sb.WriteString(
+		fmt.Sprintf(
+			"LeftPart: matched '%v' from rack '%v",
+			string(lp.matched),
+			string(lp.rack),
+		),
+	)
 	return sb.String()
 }
 
 // Init initializes a fresh LeftPermutationNavigator using the given rack
 func (lpn *LeftPermutationNavigator) Init(rack string) {
-	lpn.rack = rack
+	lpn.rack = []rune(rack)
 	// One tile from the rack will be put on the anchor square;
 	// the rest is available to be played to the left of the anchor.
 	// We thus find all permutations involving all rack tiles except
 	// one.
-	lenRack := len([]rune(rack))
+	lenRack := len(lpn.rack)
 	if lenRack <= 1 {
 		// No left permutation possible
 		lpn.maxLeft = 0
@@ -519,7 +532,7 @@ func (lpn *LeftPermutationNavigator) LeftParts(length int) []*LeftPart {
 // PushEdge determines whether the navigation should proceed into
 // an edge having chr as its first letter
 func (lpn *LeftPermutationNavigator) PushEdge(chr rune) bool {
-	if !strings.ContainsRune(lpn.rack, chr) && !strings.ContainsRune(lpn.rack, '?') {
+	if !ContainsRune(lpn.rack, chr) && !ContainsRune(lpn.rack, '?') {
 		return false
 	}
 	lpn.stack = append(lpn.stack, leftPermItem{lpn.rack, lpn.index})
@@ -549,23 +562,23 @@ func (lpn *LeftPermutationNavigator) IsAccepting() bool {
 // Accepts returns true if the navigator should accept and 'eat' the
 // given character
 func (lpn *LeftPermutationNavigator) Accepts(chr rune) bool {
-	exactMatch := strings.ContainsRune(lpn.rack, chr)
-	if !exactMatch && !strings.ContainsRune(lpn.rack, '?') {
+	exactMatch := ContainsRune(lpn.rack, chr)
+	if !exactMatch && !ContainsRune(lpn.rack, '?') {
 		return false
 	}
 	lpn.index++
 	if exactMatch {
-		lpn.rack = strings.Replace(lpn.rack, string(chr), "", 1)
+		lpn.rack = RemoveRune(lpn.rack, chr)
 	} else {
-		lpn.rack = strings.Replace(lpn.rack, "?", "", 1)
+		lpn.rack = RemoveRune(lpn.rack, '?')
 	}
 	return true
 }
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (lpn *LeftPermutationNavigator) Accept(matched string, final bool, state *navState) {
-	ix := len([]rune(matched)) - 1
+func (lpn *LeftPermutationNavigator) Accept(matched []rune, final bool, state *navState) {
+	ix := len(matched) - 1
 	lpn.leftParts[ix] = append(lpn.leftParts[ix],
 		&LeftPart{matched: matched, rack: lpn.rack, state: state},
 	)

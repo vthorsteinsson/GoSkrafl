@@ -1,5 +1,5 @@
 // move.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file implements the Move interface and associated logic,
 // including the various types of moves and their validation.
@@ -276,9 +276,10 @@ func (move *TileMove) IsValid(game *Game) bool {
 			}
 		}
 	}
-	// The first tile move must go through the center
+	// The first tile move must go through the start square
 	if board.NumTiles == 0 {
-		if _, covered := move.Covers[Coordinate{BoardSize / 2, BoardSize / 2}]; !covered {
+		startSquare := board.StartSquare()
+		if _, covered := move.Covers[startSquare]; !covered {
 			return false
 		}
 	} else {

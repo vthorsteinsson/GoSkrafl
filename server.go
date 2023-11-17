@@ -18,6 +18,7 @@ import (
 // A class describing incoming requests
 type SkraflRequest struct {
 	Dictionary string   `json:"dictionary"`
+	BoardType  string   `json:"board_type"`
 	Board      []string `json:"board"`
 	Rack       string   `json:"rack"`
 	BagSize    int      `json:"bag_size"`
@@ -43,19 +44,35 @@ type HeaderJson struct {
 
 // Handle an incoming request
 func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
-	// Set the dictionary and tile set
-	tileSet := NewIcelandicTileSet
-	dawg := IcelandicDictionary
+	// Set the board type, dictionary and tile set
+	if req.BoardType != "standard" && req.BoardType != "explo" {
+		msg := "Invalid board type. Must be 'standard' or 'explo'.\n"
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	boardType := req.BoardType
+
+	var tileSet *TileSet
+	var dawg *Dawg
 
 	switch req.Dictionary {
 	case "twl06":
-		tileSet = EnglishTileSet
 		dawg = Twl06Dictionary
+		if boardType == "explo" {
+			tileSet = NewEnglishTileSet
+		} else {
+			tileSet = EnglishTileSet
+		}
 	case "sowpods":
-		tileSet = EnglishTileSet
 		dawg = SowpodsDictionary
+		if boardType == "explo" {
+			tileSet = NewEnglishTileSet
+		} else {
+			tileSet = EnglishTileSet
+		}
 	case "ice":
-		// Already set
+		dawg = IcelandicDictionary
+		tileSet = NewIcelandicTileSet
 	// TODO: Add Polish dictionary
 	default:
 		msg := fmt.Sprintf("Unknown dictionary '%v'. Specify one of 'twl06', 'sowpods' or 'ice'.\n", req.Dictionary)
@@ -69,7 +86,7 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 		return
 	}
 
-	board := NewBoard()
+	board := NewBoard(boardType)
 	for r, rowString := range req.Board {
 		row := []rune(rowString)
 		if len(row) != 15 {
@@ -108,6 +125,13 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 				}
 			}
 		}
+	}
+
+	// The board must either be empty or have a tile in the start square
+	if board.NumTiles > 0 && !board.HasStartTile() {
+		msg := "The start square must be occupied.\n"
+		http.Error(w, msg, http.StatusBadRequest)
+		return
 	}
 
 	// Parse the incoming rack string

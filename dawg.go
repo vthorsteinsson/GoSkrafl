@@ -1,5 +1,6 @@
 // dawg.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
+//
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf
 
 // This file implements the Directed Acyclic Word Graph (DAWG)
 // which encodes the dictionary of valid words.
@@ -33,6 +34,15 @@ import (
 
 	"github.com/hashicorp/golang-lru/simplelru"
 )
+
+// IcelandicAlphabet contains the Icelandic letters as they are indexed
+// in the compressed binary DAWG. Note that the Icelandic alphabet does
+// not contain 'c', 'q', w' or 'z'.
+// TODO: move this to the DAWG file.
+const IcelandicAlphabet = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
+
+// EnglishAlphabet contains the English SCRABBLE(tm) alphabet.
+const EnglishAlphabet = "abcdefghijklmnopqrstuvwxyz"
 
 // Dawg encapsulates the externally generated,
 // compressed Directed Acyclic Word Graph as a byte buffer.
@@ -255,7 +265,7 @@ func (dawg *Dawg) NavigateResumable(navigator Navigator) {
 
 // Resume resumes a navigation through the DAWG under the
 // control of a Navigator, from a previously saved state
-func (dawg *Dawg) Resume(navigator Navigator, state *navState, matched string) {
+func (dawg *Dawg) Resume(navigator Navigator, state *navState, matched []rune) {
 	var nav Navigation
 	nav.Resume(dawg, navigator, state, matched)
 }
@@ -369,15 +379,6 @@ func makeDawg(fileName string, alphabet string) *Dawg {
 	}
 	return dawg
 }
-
-// IcelandicAlphabet contains the Icelandic letters as they are indexed
-// in the compressed binary DAWG. Note that the Icelandic alphabet does
-// not contain 'c', 'q', w' or 'z'.
-// TODO: move this to the DAWG file.
-const IcelandicAlphabet = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
-
-// EnglishAlphabet contains the English SCRABBLE(tm) alphabet.
-const EnglishAlphabet = "abcdefghijklmnopqrstuvwxyz"
 
 // IcelandicDictionary is a Dawg instance containing the Icelandic
 // Scrabble(tm) dictionary, as derived from the BÍN database

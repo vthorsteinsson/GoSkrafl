@@ -16,10 +16,10 @@ import (
 )
 
 // GameConstructor is a function that returns the type of Game we want
-type GameConstructor func() *skrafl.Game
+type GameConstructor func(boardType string) *skrafl.Game
 
 // Generate a sequence of moves and responses
-func simulateGame(gameConstructor GameConstructor,
+func simulateGame(gameConstructor GameConstructor, boardType string,
 	robotA *skrafl.RobotWrapper, robotB *skrafl.RobotWrapper,
 	verbose bool) (scoreA, scoreB int) {
 
@@ -30,7 +30,7 @@ func simulateGame(gameConstructor GameConstructor,
 	} else {
 		p = func(format string, a ...interface{}) (int, error) { return 0, nil }
 	}
-	game := gameConstructor()
+	game := gameConstructor(boardType)
 	game.SetPlayerNames("Robot A", "Robot B")
 	p("%v\n", game)
 	for i := 0; ; i++ {
@@ -75,6 +75,7 @@ func runServer() {
 func main() {
 	// Modify the following depending on the type of Game wanted
 	dict := flag.String("d", "ice", "Dictionary to use (twl06, sowpods, ice)")
+	boardType := flag.String("b", "standard", "Board type (standard, explo)")
 	num := flag.Int("n", 10, "Number of games to simulate")
 	quiet := flag.Bool("q", false, "Suppress output of game state and moves")
 	server := flag.Bool("s", false, "Run as a HTTP server")
@@ -101,7 +102,7 @@ func main() {
 	// robotB := skrafl.NewOneOfNBestRobot(10) // Picks one of 10 best moves
 	var winsA, winsB int
 	for i := 0; i < *num; i++ {
-		scoreA, scoreB := simulateGame(gameConstructor, robotA, robotB, !*quiet)
+		scoreA, scoreB := simulateGame(gameConstructor, *boardType, robotA, robotB, !*quiet)
 		if scoreA > scoreB {
 			winsA++
 		} else {

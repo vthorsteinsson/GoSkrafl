@@ -28,16 +28,109 @@ import (
 	"strings"
 )
 
+const zero = int('0')
+
 // BoardSize is the size of the Board
 const BoardSize = 15
 
 // RackSize contains the number of slots in the Rack
 const RackSize = 7
 
+// Word multiplication factors on a standard board
+var WORD_MULTIPLIERS_STANDARD = [BoardSize]string{
+	"311111131111113",
+	"121111111111121",
+	"112111111111211",
+	"111211111112111",
+	"111121111121111",
+	"111111111111111",
+	"111111111111111",
+	"311111121111113",
+	"111111111111111",
+	"111111111111111",
+	"111121111121111",
+	"111211111112111",
+	"112111111111211",
+	"121111111111121",
+	"311111131111113",
+}
+
+// Letter multiplication factors on a standard board
+var LETTER_MULTIPLIERS_STANDARD = [BoardSize]string{
+	"111211111112111",
+	"111113111311111",
+	"111111212111111",
+	"211111121111112",
+	"111111111111111",
+	"131113111311131",
+	"112111212111211",
+	"111211111112111",
+	"112111212111211",
+	"131113111311131",
+	"111111111111111",
+	"211111121111112",
+	"111111212111111",
+	"111113111311111",
+	"111211111112111",
+}
+
+// Word multiplication factors on an Explo board
+var WORD_MULTIPLIERS_EXPLO = [BoardSize]string{
+	"311111131111113",
+	"111111112111111",
+	"111111111211111",
+	"111211111111111",
+	"111121111111111",
+	"111112111111211",
+	"111111211111121",
+	"311111121111113",
+	"121111112111111",
+	"112111111211111",
+	"111111111121111",
+	"111111111112111",
+	"111112111111111",
+	"111111211111111",
+	"311111131111113",
+}
+
+// Letter multiplication factors on an Explo board
+var LETTER_MULTIPLIERS_EXPLO = [BoardSize]string{
+	"111121111112111",
+	"131112111111131",
+	"112111311111211",
+	"111111121131112",
+	"211111111113111",
+	"121111111211111",
+	"113111112111111",
+	"111211111112111",
+	"111111211111311",
+	"111112111111121",
+	"111311111111112",
+	"211131121111111",
+	"112111113111211",
+	"131111111211131",
+	"111211111121111",
+}
+
+// colIds are the column identifiers of a board
+var colIds = [BoardSize]string{
+	"1", "2", "3", "4", "5",
+	"6", "7", "8", "9", "10",
+	"11", "12", "13", "14", "15",
+}
+
+// rowIds are the row identifiers of a board
+var rowIds = [BoardSize]string{
+	"A", "B", "C", "D", "E",
+	"F", "G", "H", "I", "J",
+	"L", "M", "N", "O", "P",
+}
+
 // Board represents the board as a matrix of Squares,
 // and caches an adjacency matrix for each Square,
 // consisting of pointers to adjacent Squares
 type Board struct {
+	Type      string // 'standard' or 'explo'
 	Squares   [BoardSize][BoardSize]Square
 	Adjacents [BoardSize][BoardSize]AdjSquares
 	// The number of tiles on the board
@@ -96,20 +189,6 @@ func (square *Square) String() string {
 	return string(square.Tile.Letter)
 }
 
-// colIds are the column identifiers of a board
-var colIds = [BoardSize]string{
-	"1", "2", "3", "4", "5",
-	"6", "7", "8", "9", "10",
-	"11", "12", "13", "14", "15",
-}
-
-// rowIds are the row identifiers of a board
-var rowIds = [BoardSize]string{
-	"A", "B", "C", "D", "E",
-	"F", "G", "H", "I", "J",
-	"L", "M", "N", "O", "P",
-}
-
 // Fill draws tiles from the bag to fill a rack.
 // Returns false if unable to fill all empty slots.
 func (rack *Rack) Fill(bag *Bag) bool {
@@ -164,6 +243,22 @@ func (tile *Tile) String() string {
 		return "."
 	}
 	return string(tile.Letter)
+}
+
+// Return the coordinate of the start square for this board type
+func (board *Board) StartSquare() Coordinate {
+	if board == nil || board.Type == "standard" {
+		return Coordinate{7, 7} // H8
+	} else {
+		return Coordinate{3, 3} // D4
+	}
+}
+
+// Return true if the board has a tile in the start square
+func (board *Board) HasStartTile() bool {
+	startSquare := board.StartSquare()
+	sq := board.Sq(startSquare.Row, startSquare.Col)
+	return sq != nil && sq.Tile != nil
 }
 
 // Sq returns a pointer to a Board square
@@ -320,54 +415,28 @@ func (board *Board) CrossWords(row, col int, horizontal bool) (left, right strin
 	return // left, right
 }
 
-var WORD_MULTIPLIERS = [BoardSize]string{
-	"311111131111113",
-	"121111111111121",
-	"112111111111211",
-	"111211111112111",
-	"111121111121111",
-	"111111111111111",
-	"111111111111111",
-	"311111121111113",
-	"111111111111111",
-	"111111111111111",
-	"111121111121111",
-	"111211111112111",
-	"112111111111211",
-	"121111111111121",
-	"311111131111113",
-}
-
-var LETTER_MULTIPLIERS = [BoardSize]string{
-	"111211111112111",
-	"111113111311111",
-	"111111212111111",
-	"211111121111112",
-	"111111111111111",
-	"131113111311131",
-	"112111212111211",
-	"111211111112111",
-	"112111212111211",
-	"131113111311131",
-	"111111111111111",
-	"211111121111112",
-	"111111212111111",
-	"111113111311111",
-	"111211111112111",
-}
-
-const zero = int('0')
-
 // Init initializes an empty board
-func (board *Board) Init() {
-
+func (board *Board) Init(boardType string) {
+	// Select the correct multipliers for the board type
+	var letterMultipliers *[BoardSize]string
+	var wordMultipliers *[BoardSize]string
+	if boardType == "standard" {
+		letterMultipliers = &LETTER_MULTIPLIERS_STANDARD
+		wordMultipliers = &WORD_MULTIPLIERS_STANDARD
+	} else if boardType == "explo" {
+		letterMultipliers = &LETTER_MULTIPLIERS_EXPLO
+		wordMultipliers = &WORD_MULTIPLIERS_EXPLO
+	} else {
+		panic(fmt.Sprintf("Unknown board type: %s", boardType))
+	}
+	board.Type = boardType
 	for i := 0; i < BoardSize; i++ {
 		for j := 0; j < BoardSize; j++ {
 			sq := board.Sq(i, j)
 			sq.Row = i
 			sq.Col = j
-			sq.LetterMultiplier = int(LETTER_MULTIPLIERS[i][j]) - zero
-			sq.WordMultiplier = int(WORD_MULTIPLIERS[i][j]) - zero
+			sq.LetterMultiplier = int(letterMultipliers[i][j]) - zero
+			sq.WordMultiplier = int(wordMultipliers[i][j]) - zero
 		}
 	}
 	// Initialize the cached matrix of adjacent square lists
@@ -394,9 +463,9 @@ func (board *Board) Init() {
 	}
 }
 
-func NewBoard() *Board {
+func NewBoard(boardType string) *Board {
 	board := &Board{}
-	board.Init()
+	board.Init(boardType)
 	return board
 }
 

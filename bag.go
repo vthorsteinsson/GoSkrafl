@@ -1,6 +1,7 @@
 // bag.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
-
+//
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+//
 // This file contains the Bag and TileSet logic
 
 /*
@@ -135,8 +136,37 @@ func initEnglishTileSet() *TileSet {
 	return initTileSet(scores, tiles)
 }
 
-// EnglishTileSet is the standard English SCRABBLE(tm) tile set
+// EnglishTileSet is the (old) standard English tile set
 var EnglishTileSet = initEnglishTileSet()
+
+// initNewEnglishTileSet creates the Explo English tile set
+func initNewEnglishTileSet() *TileSet {
+
+	// The scores of each letter
+	scores := map[rune]int{
+		'i': 1, 'o': 1, 's': 1, 'a': 1, 'e': 1,
+		't': 2, 'h': 2, 'y': 2, 'm': 2, 'u': 2,
+		'd': 2, 'n': 2, 'l': 2, 'r': 2, 'p': 2,
+		'k': 3, 'b': 3, 'g': 3, 'c': 3, 'f': 3,
+		'w': 4, 'x': 5, 'v': 5, 'j': 6, 'z': 6,
+		'q': 12, '?': 0, // Blank tiles
+	}
+
+	// The number of tiles for each letter
+	tiles := map[rune]int{
+		'e': 12, 'a': 11, 's': 9, 'o': 7, 'i': 6,
+		'r': 6, 'n': 5, 'l': 5, 't': 4, 'u': 4,
+		'd': 4, 'm': 3, 'g': 3, 'c': 3, 'h': 2,
+		'y': 2, 'p': 2, 'b': 2, 'k': 1, 'w': 1,
+		'f': 1, 'x': 1, 'v': 1, 'j': 1, 'z': 1,
+		'q': 1, '?': 2, // Blank tiles
+	}
+
+	return initTileSet(scores, tiles)
+}
+
+// NewEnglishTileSet is the Explo English tile set
+var NewEnglishTileSet = initNewEnglishTileSet()
 
 // Initialize a bag from a tile set and return a reference to it
 func makeBag(tileSet *TileSet) *Bag {

@@ -1,5 +1,5 @@
 // game.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file implements the Game and GameState classes
 
@@ -77,8 +77,8 @@ type MoveItem struct {
 // Init initializes a new game with a fresh bag copied
 // from the given tile set, and draws the player racks
 // from the bag
-func (game *Game) Init(tileSet *TileSet, dawg *Dawg) {
-	game.Board.Init()
+func (game *Game) Init(boardType string, tileSet *TileSet, dawg *Dawg) {
+	game.Board.Init(boardType)
 	game.Racks[0].Init()
 	game.Racks[1].Init()
 	game.TileSet = tileSet
@@ -94,37 +94,49 @@ func (game *Game) Init(tileSet *TileSet, dawg *Dawg) {
 
 // NewIcelandicGame instantiates a new Game with the Icelandic TileSet
 // and returns a reference to it
-func NewIcelandicGame() *Game {
+func NewIcelandicGame(boardType string) *Game {
 	if IcelandicDictionary == nil {
 		// Unable to read Icelandic DAWG
 		return nil
 	}
 	game := &Game{}
-	game.Init(NewIcelandicTileSet, IcelandicDictionary)
+	game.Init(boardType, NewIcelandicTileSet, IcelandicDictionary)
 	return game
 }
 
 // NewTwl06Game instantiates a new Game with the English TileSet
 // and returns a reference to it
-func NewTwl06Game() *Game {
+func NewTwl06Game(boardType string) *Game {
 	if Twl06Dictionary == nil {
 		// Unable to read TWL06 DAWG
 		return nil
 	}
 	game := &Game{}
-	game.Init(EnglishTileSet, Twl06Dictionary)
+	var tileSet *TileSet
+	if boardType == "explo" {
+		tileSet = NewEnglishTileSet
+	} else {
+		tileSet = EnglishTileSet
+	}
+	game.Init(boardType, tileSet, Twl06Dictionary)
 	return game
 }
 
 // NewSowpodsGame instantiates a new Game with the English TileSet
 // and returns a reference to it
-func NewSowpodsGame() *Game {
+func NewSowpodsGame(boardType string) *Game {
 	if SowpodsDictionary == nil {
 		// Unable to read SOWPODS DAWG
 		return nil
 	}
 	game := &Game{}
-	game.Init(EnglishTileSet, SowpodsDictionary)
+	var tileSet *TileSet
+	if boardType == "explo" {
+		tileSet = NewEnglishTileSet
+	} else {
+		tileSet = EnglishTileSet
+	}
+	game.Init(boardType, tileSet, SowpodsDictionary)
 	return game
 }
 
@@ -163,13 +175,8 @@ func (game *Game) TileAt(row, col int) *Tile {
 
 // PlayTile moves a tile from the player's rack to the board
 func (game *Game) PlayTile(tile *Tile, row, col int) bool {
-	sq := game.Board.Sq(row, col)
-	if sq == nil {
-		// No such square
-		return false
-	}
-	if sq.Tile != nil {
-		// We already have a tile in this location
+	if sq := game.Board.Sq(row, col); sq == nil || sq.Tile != nil {
+		// No such square or already occupied
 		return false
 	}
 	playerToMove := game.PlayerToMove()
@@ -185,8 +192,7 @@ func (game *Game) PlayTile(tile *Tile, row, col int) bool {
 		tile.Meaning = tile.Letter
 	}
 	tile.PlayedBy = playerToMove
-	game.Board.PlaceTile(row, col, tile)
-	return true
+	return game.Board.PlaceTile(row, col, tile)
 }
 
 // TilesOnBoard returns the number of tiles already laid down

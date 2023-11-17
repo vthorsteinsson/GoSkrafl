@@ -1,5 +1,5 @@
 // movegen.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file contains code to generate all valid tile moves
 // on a SCRABBLE(tm) board, given a player's rack.
@@ -87,10 +87,6 @@ of the SCRABBLE trademark.
 
 package skrafl
 
-import (
-	"strings"
-)
-
 // ExtendRightNavigator implements the core of the Appel-Jacobson
 // algorithm. It proceeds along an Axis, covering empty Squares with
 // Tiles from the Rack while obeying constraints from the Dawg and
@@ -100,7 +96,7 @@ type ExtendRightNavigator struct {
 	axis           *Axis
 	anchor         int
 	index          int
-	rack           string
+	rack           []rune
 	stack          []ernItem
 	lastCheck      int
 	wildcardInRack bool
@@ -109,7 +105,7 @@ type ExtendRightNavigator struct {
 }
 
 type ernItem struct {
-	rack           string
+	rack           []rune
 	index          int
 	wildcardInRack bool
 }
@@ -123,12 +119,12 @@ const (
 
 // Init initializes a fresh ExtendRightNavigator for an axis, starting
 // from the given anchor, using the indicated rack
-func (ern *ExtendRightNavigator) Init(axis *Axis, anchor int, rack string) {
+func (ern *ExtendRightNavigator) Init(axis *Axis, anchor int, rack []rune) {
 	ern.axis = axis
 	ern.anchor = anchor
 	ern.index = anchor
 	ern.rack = rack
-	ern.wildcardInRack = strings.ContainsRune(rack, '?')
+	ern.wildcardInRack = ContainsRune(rack, '?')
 	ern.stack = make([]ernItem, 0, RackSize)
 	ern.moves = make([]Move, 0)
 }
@@ -145,7 +141,7 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 		return mNo
 	}
 	// Does the current rack allow this letter?
-	if !ern.wildcardInRack && !strings.ContainsRune(ern.rack, letter) {
+	if !ern.wildcardInRack && !ContainsRune(ern.rack, letter) {
 		// No, it doesn't
 		return mNo
 	}
@@ -227,21 +223,21 @@ func (ern *ExtendRightNavigator) Accepts(letter rune) bool {
 	// it came from there
 	ern.index++
 	if match == mRackTile {
-		if strings.ContainsRune(ern.rack, letter) {
+		if ContainsRune(ern.rack, letter) {
 			// Used a normal tile
-			ern.rack = strings.Replace(ern.rack, string(letter), "", 1)
+			ern.rack = RemoveRune(ern.rack, letter)
 		} else {
 			// Used a blank tile
-			ern.rack = strings.Replace(ern.rack, "?", "", 1)
+			ern.rack = RemoveRune(ern.rack, '?')
 		}
-		ern.wildcardInRack = strings.ContainsRune(ern.rack, '?')
+		ern.wildcardInRack = ContainsRune(ern.rack, '?')
 	}
 	return true
 }
 
 // Accept is called to inform the navigator of a match and
 // whether it is a final word
-func (ern *ExtendRightNavigator) Accept(matched string, final bool, state *navState) {
+func (ern *ExtendRightNavigator) Accept(matched []rune, final bool, state *navState) {
 	if state != nil {
 		panic("ExtendRightNavigator should not be resumable")
 	}
@@ -251,8 +247,7 @@ func (ern *ExtendRightNavigator) Accept(matched string, final bool, state *navSt
 		// not a legal tile move
 		return
 	}
-	runes := []rune(matched)
-	if len(runes) < 2 {
+	if len(matched) < 2 {
 		// Less than 2 letters long: not a legal tile move
 		return
 	}
@@ -260,19 +255,19 @@ func (ern *ExtendRightNavigator) Accept(matched string, final bool, state *navSt
 	// the move list
 	covers := make(Covers)
 	// Calculate the starting index within the axis
-	start := ern.index - len(runes)
+	start := ern.index - len(matched)
 	// The original rack
-	rack := ern.axis.rackString
-	for i, meaning := range runes {
+	rack := ern.axis.rackRunes
+	for i, meaning := range matched {
 		sq := ern.axis.sq[start+i]
 		if sq.Tile == nil {
 			letter := meaning
-			if strings.ContainsRune(rack, meaning) {
-				rack = strings.Replace(rack, string(meaning), "", 1)
+			if ContainsRune(rack, meaning) {
+				rack = RemoveRune(rack, meaning)
 			} else {
 				// Must be using a blank tile
 				letter = '?'
-				rack = strings.Replace(rack, "?", "", 1)
+				rack = RemoveRune(rack, '?')
 			}
 			covers[Coordinate{sq.Row, sq.Col}] = Cover{letter, meaning}
 		}
@@ -292,6 +287,7 @@ type Axis struct {
 	rackSet uint
 	// rackString is the original rack, stored as a string
 	rackString string
+	rackRunes  []rune
 	// Array of convenience pointers to the board squares on this Axis
 	sq [BoardSize]*Square
 	// A bitmap of the letters that are allowed on each square,
@@ -309,7 +305,9 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 	axis.rackSet = rackSet
 	axis.horizontal = horizontal
 	axis.rackString = state.Rack.AsString()
+	axis.rackRunes = state.Rack.AsRunes()
 	board := state.Board
+	startSquare := board.StartSquare()
 	// Build an array of pointers to the squares on this axis
 	for i := 0; i < BoardSize; i++ {
 		if horizontal {
@@ -330,8 +328,8 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 		if board.NumTiles == 0 {
 			// Special case:
 			// If no tile has yet been placed on the board,
-			// mark the center square of the center column as an anchor
-			isAnchor = (index == BoardSize/2) && (i == BoardSize/2) && !horizontal
+			// mark the start square as an anchor
+			isAnchor = horizontal && (index == startSquare.Row) && (i == startSquare.Col)
 		} else {
 			isAnchor = board.NumAdjacentTiles(sq.Row, sq.Col) > 0
 		}
@@ -420,8 +418,8 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 		// We found a matching prefix in the graph:
 		// do an ExtendRight from that location, using the whole rack
 		var ern ExtendRightNavigator
-		ern.Init(axis, anchor, axis.rackString)
-		dawg.Resume(&ern, lfn.state, string(left))
+		ern.Init(axis, anchor, axis.rackRunes)
+		dawg.Resume(&ern, lfn.state, left)
 		// Return the move list accumulated by the ExtendRightNavigator
 		return ern.moves
 	}
@@ -431,7 +429,7 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 	// tiles on the anchor square itself and to its right
 	moves := make([]Move, 0)
 	var ern ExtendRightNavigator
-	ern.Init(axis, anchor, axis.rackString)
+	ern.Init(axis, anchor, axis.rackRunes)
 	dawg.Navigate(&ern)
 	// Collect the moves found so far
 	moves = append(moves, ern.moves...)
