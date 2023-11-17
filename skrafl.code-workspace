@@ -11,6 +11,16 @@
 		},
 		"gopls": {
 			"ui.semanticTokens": true
+		},
+		"editor.indentSize": "tabSize",
+		"[go]":{
+			"editor.tabSize": 8,
+			"editor.indentSize": 8,
+			"editor.insertSpaces": false,
+			"editor.formatOnSave": true,
+			"editor.codeActionsOnSave": {
+				"source.organizeImports": true
+			}
 		}
 	}
 }

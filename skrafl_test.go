@@ -112,7 +112,7 @@ func BenchmarkDawg(b *testing.B) {
 }
 
 func TestTileMove(t *testing.T) {
-	game := NewIcelandicGame()
+	game := NewIcelandicGame("standard")
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
 		return
@@ -125,8 +125,8 @@ func TestTileMove(t *testing.T) {
 	}
 	// Construct a move from the player 0 rack
 	move := game.Racks[0].Extract(4, 'x')
-	if game.MakeTileMove(2, 2, false, move) {
-		t.Errorf("First move must go through center")
+	if game.MakeTileMove(3, 3, false, move) {
+		t.Errorf("First move must go through H8")
 	}
 	// Check number of tiles now on the Board
 	if game.TilesOnBoard() != 0 {
@@ -330,8 +330,40 @@ func TestTileMove(t *testing.T) {
 	}
 }
 
+func TestStartSquare(t *testing.T) {
+	game := NewIcelandicGame("explo")
+	if game == nil {
+		t.Errorf("Unable to create a new Icelandic game")
+		return
+	}
+	// For testing, disable word validation for tile moves
+	game.ValidateWords = false
+	game.SetPlayerNames("Villi", "Gopher")
+	if game.IsOver() {
+		t.Errorf("Game can't be over before it starts")
+	}
+	// Construct a move from the player 0 rack
+	move := game.Racks[0].Extract(4, 'x')
+	// Attempt to make a move that starts at H8
+	if game.MakeTileMove(7, 7, false, move) {
+		t.Errorf("First move must go through D4 square")
+	}
+	// Check number of tiles now on the Board
+	if game.TilesOnBoard() != 0 {
+		t.Errorf("Board should have 0 tiles after erroneous move")
+	}
+	// Make a move that starts at D4
+	if !game.MakeTileMove(3, 3, false, move) {
+		t.Errorf("First move through D4 rejected")
+	}
+	// Check number of tiles now on the Board
+	if game.TilesOnBoard() != 4 {
+		t.Errorf("Board should have 4 tiles after valid move")
+	}
+}
+
 func TestWordCheck(t *testing.T) {
-	game := NewIcelandicGame()
+	game := NewIcelandicGame("standard")
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
 		return
@@ -367,7 +399,7 @@ func TestWordCheck(t *testing.T) {
 
 func TestFindLeftParts(t *testing.T) {
 	// Find left parts
-	game := NewIcelandicGame()
+	game := NewIcelandicGame("standard")
 	if game == nil {
 		t.Errorf("Unable to create a new Icelandic game")
 		return
@@ -423,7 +455,7 @@ func TestStringify(t *testing.T) {
 	// Stringify the game (no test but at least this enhances coverage)
 	var game *Game
 	for i := 0; ; i++ {
-		game = NewIcelandicGame()
+		game = NewIcelandicGame("standard")
 		if game == nil {
 			t.Errorf("Unable to create a new Icelandic game")
 			return
@@ -463,7 +495,7 @@ func BenchmarkRobot(b *testing.B) {
 
 	// Generate a sequence of moves and responses
 	simulateGame := func(robot *RobotWrapper) {
-		game := NewIcelandicGame()
+		game := NewIcelandicGame("standard")
 		game.SetPlayerNames("Villi", "Gopher")
 		for {
 			state := game.State()
@@ -482,12 +514,12 @@ func BenchmarkRobot(b *testing.B) {
 }
 
 func TestRobot(t *testing.T) {
-	runTest := func(ctor func() *Game) {
+	runTest := func(ctor func(boardType string) *Game) {
 		robot := NewHighScoreRobot()
 		if robot == nil {
 			t.Errorf("Unable to create HighScoreRobot")
 		}
-		game := ctor()
+		game := ctor("standard")
 		if game == nil {
 			t.Errorf("Unable to create a new game")
 		}

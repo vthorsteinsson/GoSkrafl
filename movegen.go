@@ -310,6 +310,7 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 	axis.horizontal = horizontal
 	axis.rackString = state.Rack.AsString()
 	board := state.Board
+	startSquare := board.StartSquare()
 	// Build an array of pointers to the squares on this axis
 	for i := 0; i < BoardSize; i++ {
 		if horizontal {
@@ -330,8 +331,8 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 		if board.NumTiles == 0 {
 			// Special case:
 			// If no tile has yet been placed on the board,
-			// mark the center square of the center column as an anchor
-			isAnchor = (index == BoardSize/2) && (i == BoardSize/2) && !horizontal
+			// mark the start square as an anchor
+			isAnchor = horizontal && (index == startSquare.Row) && (i == startSquare.Col)
 		} else {
 			isAnchor = board.NumAdjacentTiles(sq.Row, sq.Col) > 0
 		}
