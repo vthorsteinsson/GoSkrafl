@@ -499,8 +499,8 @@ func (lp *LeftPart) String() string {
 }
 
 // Init initializes a fresh LeftPermutationNavigator using the given rack
-func (lpn *LeftPermutationNavigator) Init(rack string) {
-	lpn.rack = []rune(rack)
+func (lpn *LeftPermutationNavigator) Init(rack []rune) {
+	lpn.rack = rack
 	// One tile from the rack will be put on the anchor square;
 	// the rest is available to be played to the left of the anchor.
 	// We thus find all permutations involving all rack tiles except
@@ -586,7 +586,7 @@ func (lpn *LeftPermutationNavigator) Accept(matched []rune, final bool, state *n
 
 // FindLeftParts returns all left part permutations that can be generated
 // from the given rack, grouped by length
-func FindLeftParts(dawg *Dawg, rack string) [][]*LeftPart {
+func FindLeftParts(dawg *Dawg, rack []rune) [][]*LeftPart {
 	var lpn LeftPermutationNavigator
 	lpn.Init(rack)
 	dawg.NavigateResumable(&lpn)

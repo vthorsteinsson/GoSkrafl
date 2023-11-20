@@ -10,11 +10,10 @@ instance_class: F1
 inbound_services:
 - warmup
 
+env_variables:
+  PROJECT_ID: explo-dev
+
 handlers:
 - url: /moves
   script: auto
-  secure: always
-  http_headers:
-    Access-Control-Allow-Origin: https://explo-dev.appspot.com
-    Access-Control-Allow-Methods: POST
-    Access-Control-Allow-Headers: Content-Type
+  # secure: always

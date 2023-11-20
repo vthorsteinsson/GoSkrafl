@@ -54,6 +54,7 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 
 	var tileSet *TileSet
 	var dawg *Dawg
+	rackRunes := []rune(req.Rack)
 
 	switch req.Dictionary {
 	case "twl06":
@@ -76,6 +77,12 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	// TODO: Add Polish dictionary
 	default:
 		msg := fmt.Sprintf("Unknown dictionary '%v'. Specify one of 'twl06', 'sowpods' or 'ice'.\n", req.Dictionary)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	if len(rackRunes) == 0 || len(rackRunes) > 7 {
+		msg := "Invalid rack.\n"
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
@@ -135,7 +142,12 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	}
 
 	// Parse the incoming rack string
-	rack := NewRack(req.Rack, tileSet)
+	rack := NewRack(rackRunes, tileSet)
+	if rack == nil {
+		msg := "Rack contains invalid letter.\n"
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
 
 	// Create a fresh GameState object, then find the valid moves
 	state := NewState(

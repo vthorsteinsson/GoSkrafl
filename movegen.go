@@ -501,7 +501,7 @@ func (state *GameState) GenerateMoves() []Move {
 	// contains blank tiles ('?'), the bit map will have all bits set.
 	rackSet := state.Dawg.alphabet.MakeSet(rack)
 	lenRack := len(rack)
-	leftParts := FindLeftParts(state.Dawg, string(rack))
+	leftParts := FindLeftParts(state.Dawg, rack)
 	// Result channel containing up to BoardSize*2 move lists
 	resultMoves := make(chan []Move, BoardSize*2)
 	// Goroutine to find moves on a particular axis

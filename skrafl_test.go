@@ -22,7 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package skrafl
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -404,21 +403,20 @@ func TestFindLeftParts(t *testing.T) {
 		t.Errorf("Unable to create a new Icelandic game")
 		return
 	}
-	rack := game.Racks[game.PlayerToMove()].AsString()
+	rack := game.Racks[game.PlayerToMove()].AsRunes()
 	leftParts := FindLeftParts(game.Dawg, rack)
 	for lenParts, lp := range leftParts {
 		for _, part := range lp {
-			runes := []rune(part.matched)
-			if len(runes) != lenParts+1 {
+			if len(part.matched) != lenParts+1 {
 				t.Errorf("Unexpected length of left part %v", part.matched)
 			}
-			tempRack := string(rack)
-			for _, r := range runes {
-				if strings.ContainsRune(tempRack, r) {
-					tempRack = strings.Replace(tempRack, string(r), "", 1)
+			tempRack := []rune(rack)
+			for _, r := range part.matched {
+				if ContainsRune(tempRack, r) {
+					tempRack = RemoveRune(tempRack, r)
 				} else {
-					if strings.ContainsRune(tempRack, '?') {
-						tempRack = strings.Replace(tempRack, "?", "", 1)
+					if ContainsRune(tempRack, '?') {
+						tempRack = RemoveRune(tempRack, '?')
 					} else {
 						t.Errorf("Left prefix contains a letter that is not in the rack")
 					}
@@ -514,14 +512,14 @@ func BenchmarkRobot(b *testing.B) {
 }
 
 func TestRobot(t *testing.T) {
-	runTest := func(ctor func(boardType string) *Game) {
+	runTest := func(boardType string, ctor func(boardType string) *Game) {
 		robot := NewHighScoreRobot()
 		if robot == nil {
 			t.Errorf("Unable to create HighScoreRobot")
 		}
-		game := ctor("standard")
+		game := ctor(boardType)
 		if game == nil {
-			t.Errorf("Unable to create a new game")
+			t.Errorf("Unable to create a new game for board type '%s'", boardType)
 		}
 		game.SetPlayerNames("Villi", "Gopher")
 		// Go through an entire game
@@ -554,11 +552,13 @@ func TestRobot(t *testing.T) {
 			t.Errorf("Incorrect number of moves recorded")
 		}
 	}
-	// Cycle through 5 rounds of three simulated games, each
-	// with its own Dawg and alphabet
+	// Cycle through 5 rounds of 2 x three simulated games, each
+	// with its own board type, Dawg and alphabet
 	for cycle := 0; cycle < 5; cycle++ {
-		runTest(NewIcelandicGame)
-		runTest(NewTwl06Game)
-		runTest(NewSowpodsGame)
+		for _, boardType := range []string{"standard", "explo"} {
+			runTest(boardType, NewIcelandicGame)
+			runTest(boardType, NewTwl06Game)
+			runTest(boardType, NewSowpodsGame)
+		}
 	}
 }

@@ -25,15 +25,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package skrafl
 
 import (
+	"embed"
 	"encoding/binary"
-	"fmt"
-	"go/build"
-	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/golang-lru/simplelru"
 )
+
+// Point to the DAWG file resources in the dicts directory
+//
+//go:embed dicts/*.bin.dawg
+var dawgFS embed.FS
 
 // IcelandicAlphabet contains the Icelandic letters as they are indexed
 // in the compressed binary DAWG. Note that the Icelandic alphabet does
@@ -204,24 +207,13 @@ func (dawg *Dawg) iterNode(offset uint32) *navStates {
 }
 
 // Init reads the Dawg into memory (TODO: or memory-maps it)
-func (dawg *Dawg) Init(filePath string, alphabet string) error {
-	f, err := os.Open(filePath)
+func (dawg *Dawg) Init(fs embed.FS, fileName string, alphabet string) error {
+	data, err := fs.ReadFile(filepath.Join("dicts", fileName))
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	// Get the file size
-	info, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	size := int(info.Size())
-	// Allocate a buffer and read the entire file into it
-	dawg.b = make([]byte, size)
-	n, err := f.Read(dawg.b)
-	if err != nil || n < size {
-		return fmt.Errorf("can't read entire file: '%v'", filePath)
-	}
+	dawg.b = make([]byte, len(data))
+	copy(dawg.b, data)
 	// Create the alphabet decoding map
 	dawg.coding = make(Coding)
 	i := byte(0)
@@ -369,11 +361,8 @@ func (cc *crossCache) Lookup(key string, fetchFunc func(string) uint) uint {
 // skrafl module
 func makeDawg(fileName string, alphabet string) *Dawg {
 	dawg := &Dawg{}
-	goPath := build.Default.GOPATH
 	// There should be a better way to do this?
-	path := goPath + "/src/github.com/vthorsteinsson/GoSkrafl/dicts/" + fileName
-	path = filepath.FromSlash(path)
-	err := dawg.Init(path, alphabet)
+	err := dawg.Init(dawgFS, fileName, alphabet)
 	if err != nil {
 		panic(err)
 	}

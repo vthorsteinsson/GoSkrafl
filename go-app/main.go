@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 
 	skrafl "github.com/vthorsteinsson/GoSkrafl"
 )
@@ -33,14 +34,20 @@ func warmup(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/moves", handler)
+	// Log to Google App Engine
+	log.SetOutput(os.Stderr)
+	log.Printf("Moves service starting, Go version %s", runtime.Version())
+	// Set up a dummy warmup handler
 	http.HandleFunc("/_ah/warmup", warmup)
+	// Set up the actual service handler
+	http.HandleFunc("/moves", handler)
+	// Establish the port number to listen on, defaulting to 8080
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
-		log.Printf("Defaulting to port %s", port)
 	}
 	log.Printf("Listening on port %s", port)
+	// Start the server loop
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}

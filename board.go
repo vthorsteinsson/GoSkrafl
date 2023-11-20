@@ -485,7 +485,7 @@ func (rack *Rack) Init() {
 
 // Create a rack containing the tiles specified in the string r,
 // with '?' denoting the blank tile
-func NewRack(r string, tileSet *TileSet) *Rack {
+func NewRack(r []rune, tileSet *TileSet) *Rack {
 	rack := &Rack{Letters: make(map[rune]int)}
 	// Initialize rack slots
 	slot := 0
@@ -495,10 +495,15 @@ func NewRack(r string, tileSet *TileSet) *Rack {
 		sq.Col = slot
 		sq.LetterMultiplier = 1
 		sq.WordMultiplier = 1
+		// If tileSet does not contain the letter, return nil
+		score, ok := tileSet.Scores[letter]
+		if !ok {
+			return nil
+		}
 		sq.Tile = &Tile{
 			Letter:  letter,
 			Meaning: letter,
-			Score:   tileSet.Scores[letter],
+			Score:   score,
 		}
 		rack.Letters[letter]++
 		slot++
