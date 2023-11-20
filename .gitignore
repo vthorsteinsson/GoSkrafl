@@ -18,3 +18,6 @@ main/main
 *.out
 
 *.code-workspace
+
+# Binary executable
+GoSkrafl
