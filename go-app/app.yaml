@@ -1,0 +1,20 @@
+
+# app.yaml file for GoSkrafl on Google App Engine
+
+runtime: go121
+
+service: moves
+
+instance_class: F1
+
+inbound_services:
+- warmup
+
+handlers:
+- url: /moves
+  script: auto
+  secure: always
+  http_headers:
+    Access-Control-Allow-Origin: https://explo-dev.appspot.com
+    Access-Control-Allow-Methods: POST
+    Access-Control-Allow-Headers: Content-Type
