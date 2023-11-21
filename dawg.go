@@ -212,8 +212,7 @@ func (dawg *Dawg) Init(fs embed.FS, fileName string, alphabet string) error {
 	if err != nil {
 		return err
 	}
-	dawg.b = make([]byte, len(data))
-	copy(dawg.b, data)
+	dawg.b = data
 	// Create the alphabet decoding map
 	dawg.coding = make(Coding)
 	i := byte(0)

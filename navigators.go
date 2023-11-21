@@ -473,8 +473,9 @@ type LeftPermutationNavigator struct {
 }
 
 type leftPermItem struct {
-	rack  []rune
-	index int
+	rack     []rune
+	hasBlank bool
+	index    int
 }
 
 // LeftPart stores the navigation state after matching a particular
@@ -503,8 +504,7 @@ func (lp *LeftPart) String() string {
 func (lpn *LeftPermutationNavigator) Init(rack []rune) {
 	// Copy rack into lpn.rack
 	lenRack := len(rack)
-	lpn.rack = make([]rune, lenRack)
-	copy(lpn.rack, rack)
+	lpn.rack = []rune(rack)
 	// One tile from the rack will be put on the anchor square;
 	// the rest is available to be played to the left of the anchor.
 	// We thus find all permutations involving all rack tiles except
@@ -539,7 +539,7 @@ func (lpn *LeftPermutationNavigator) PushEdge(chr rune) bool {
 	if !lpn.hasBlank && !ContainsRune(lpn.rack, chr) {
 		return false
 	}
-	lpn.stack = append(lpn.stack, leftPermItem{lpn.rack, lpn.index})
+	lpn.stack = append(lpn.stack, leftPermItem{lpn.rack, lpn.hasBlank, lpn.index})
 	return true
 }
 
@@ -548,7 +548,8 @@ func (lpn *LeftPermutationNavigator) PushEdge(chr rune) bool {
 func (lpn *LeftPermutationNavigator) PopEdge() bool {
 	// Pop the previous rack and index from the stack
 	last := len(lpn.stack) - 1
-	lpn.rack, lpn.index = lpn.stack[last].rack, lpn.stack[last].index
+	s := &lpn.stack[last]
+	lpn.rack, lpn.index, lpn.hasBlank = s.rack, s.index, s.hasBlank
 	lpn.stack = lpn.stack[0:last]
 	return true
 }

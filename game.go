@@ -302,6 +302,10 @@ func (game *Game) MakeTileMove(row, col int, horizontal bool, tiles []*Tile) boo
 func (game *Game) ApplyValid(move Move) bool {
 	// Be careful to call PlayerToMove() before appending
 	// a move to the move list (this reverses the players)
+	if game == nil || move == nil {
+		// Should not happen
+		return false
+	}
 	playerToMove := game.PlayerToMove()
 	rack := &game.Racks[playerToMove]
 	rackBefore := rack.AsString()
@@ -342,6 +346,9 @@ func (game *Game) ApplyValid(move Move) bool {
 // to the Game's MoveList
 func (game *Game) acceptMove(rackBefore string, move Move) {
 	// Calculate the score
+	if game == nil || move == nil {
+		return
+	}
 	score := move.Score(game.State())
 	// Update the player's score
 	game.Scores[game.PlayerToMove()] += score

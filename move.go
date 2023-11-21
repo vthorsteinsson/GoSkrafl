@@ -37,24 +37,29 @@ type Move interface {
 	Marshal(score int) ([]byte, error)
 }
 
+// A Validatable move contains a word that can be validated
+// against a dictionary (DAWG)
+type Validatable interface {
+	Move
+	ContainedWord() string
+	ValidateWord(*Dawg) bool
+}
+
 // PassMove is a move that is always valid, has no effect when applied,
 // and has a score of 0
 type PassMove struct {
-	Move
 }
 
 // ExchangeMove is a move that exchanges 1-7 tiles from the player's
 // Rack with the Bag. It is only valid when at least 7 tiles are
 // left in the Bag.
 type ExchangeMove struct {
-	Move
 	Letters string
 }
 
 // FinalMove represents the final adjustments that are made to
 // player scores at the end of a Game
 type FinalMove struct {
-	Move
 	OpponentRack   string
 	MultiplyFactor int
 }
@@ -62,7 +67,6 @@ type FinalMove struct {
 // TileMove represents a normal tile move by a player, where
 // one or more Squares are covered by a Tile from the player's Rack
 type TileMove struct {
-	Move
 	TopLeft     Coordinate
 	BottomRight Coordinate
 	Covers      Covers
@@ -314,6 +318,14 @@ func (move *TileMove) IsValid(game *Game) bool {
 	return true
 }
 
+func (move *TileMove) ContainedWord() string {
+	return move.Word
+}
+
+func (move *TileMove) ValidateWord(dawg *Dawg) bool {
+	return dawg.Find(move.Word)
+}
+
 // Apply moves the tiles in the Covers from the player's Rack
 // to the board Squares
 func (move *TileMove) Apply(game *Game) bool {
@@ -433,6 +445,18 @@ func (move *PassMove) IsValid(game *Game) bool {
 	return true
 }
 
+func (move *PassMove) Marshal(score int) ([]byte, error) {
+	type PassJson struct {
+		Word  string `json:"w"`
+		Score int    `json:"sc"`
+	}
+	j := PassJson{
+		Word:  "PASS",
+		Score: score,
+	}
+	return json.Marshal(j)
+}
+
 // Apply always succeeds and returns true for a PassMove
 func (move *PassMove) Apply(game *Game) bool {
 	// Increment the number of consecutive zero-point moves
@@ -479,6 +503,20 @@ func (move *ExchangeMove) IsValid(game *Game) bool {
 	}
 	// All exchanged letters found: the move is OK
 	return true
+}
+
+func (move *ExchangeMove) Marshal(score int) ([]byte, error) {
+	type XchgJson struct {
+		Word  string `json:"w"`
+		Tiles string `json:"t"`
+		Score int    `json:"sc"`
+	}
+	j := XchgJson{
+		Word:  "XCHG",
+		Tiles: move.Letters,
+		Score: score,
+	}
+	return json.Marshal(j)
 }
 
 // Apply replenishes the exchanged tiles in the Rack
@@ -533,6 +571,20 @@ func (move *FinalMove) IsValid(game *Game) bool {
 // Apply always succeeds and returns true for a FinalMove
 func (move *FinalMove) Apply(game *Game) bool {
 	return true
+}
+
+func (move *FinalMove) Marshal(score int) ([]byte, error) {
+	type FinalJson struct {
+		Word           string `json:"w"`
+		MultiplyFactor int    `json:"m"`
+		Score          int    `json:"sc"`
+	}
+	j := FinalJson{
+		Word:           move.OpponentRack,
+		MultiplyFactor: move.MultiplyFactor,
+		Score:          score,
+	}
+	return json.Marshal(j)
 }
 
 // Score returns the opponent's rack leave, multiplied

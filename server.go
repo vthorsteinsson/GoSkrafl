@@ -22,6 +22,7 @@ type SkraflRequest struct {
 	Board      []string `json:"board"`
 	Rack       string   `json:"rack"`
 	BagSize    int      `json:"bag_size"`
+	Limit      int      `json:"limit"`
 }
 
 // A kludge to be able to marshal a Move with its score
@@ -39,6 +40,7 @@ func (m *MoveWithScore) MarshalJSON() ([]byte, error) {
 // The JSON response header
 type HeaderJson struct {
 	Version string          `json:"version"`
+	Count   int             `json:"count"`
 	Moves   []MoveWithScore `json:"moves"`
 }
 
@@ -175,10 +177,15 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	sort.Slice(movesWithScores, func(i, j int) bool {
 		return movesWithScores[i].Score > movesWithScores[j].Score
 	})
+	// If a limit is specified, use that as a cap on the number of moves returned
+	if req.Limit > 0 {
+		movesWithScores = movesWithScores[0:min(req.Limit, len(movesWithScores))]
+	}
 
 	// Return the result as JSON
 	result := HeaderJson{
 		Version: "1.0",
+		Count:   len(movesWithScores),
 		Moves:   movesWithScores,
 	}
 	if err := json.NewEncoder(w).Encode(result); err != nil {

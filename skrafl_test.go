@@ -408,7 +408,10 @@ func TestFindLeftParts(t *testing.T) {
 	for lenParts, lp := range leftParts {
 		for _, part := range lp {
 			if len(part.matched) != lenParts+1 {
-				t.Errorf("Unexpected length of left part %v", part.matched)
+				t.Errorf("Unexpected length of left part %v", string(part.matched))
+			}
+			if len(part.rack) != RackSize-(lenParts+1) {
+				t.Errorf("Unexpected length of rack %v", string(rack))
 			}
 			tempRack := []rune(rack)
 			for _, r := range part.matched {
@@ -421,6 +424,59 @@ func TestFindLeftParts(t *testing.T) {
 						t.Errorf("Left prefix contains a letter that is not in the rack")
 					}
 				}
+			}
+		}
+	}
+}
+
+func TestAxis(t *testing.T) {
+
+	type TilePlacement struct {
+		Row  int
+		Col  int
+		Tile *Tile
+	}
+
+	// Test the move generation on a single Axis instance
+	board := NewBoard("explo")
+	for _, tp := range []TilePlacement{
+		{3, 3, &Tile{'d', 'd', 3, 0}},
+		{3, 4, &Tile{'o', 'o', 4, 0}},
+	} {
+		board.PlaceTile(tp.Row, tp.Col, tp.Tile)
+	}
+	if board.NumTiles != 2 {
+		t.Errorf("Board should have 2 tiles")
+	}
+	if !board.HasStartTile() {
+		t.Errorf("Board should have start tile")
+	}
+	rack := NewRack([]rune("prófaðu"), NewIcelandicTileSet)
+	state := NewState(
+		IcelandicDictionary,
+		NewIcelandicTileSet,
+		board,
+		rack,
+		100,
+	)
+	rackRunes := rack.AsRunes()
+	rackSet := state.Dawg.alphabet.MakeSet(rackRunes)
+	leftParts := FindLeftParts(state.Dawg, rackRunes)
+	var axis Axis
+	// Horizontal axis representing row 4 (E)
+	axis.Init(state, rackSet, 4, true)
+	moves := axis.GenerateMoves(leftParts)
+	if len(moves) == 0 {
+		t.Errorf("No moves generated")
+	}
+	// Validate that all words formed are found in the dictionary
+	for _, move := range moves {
+		if wordMove, ok := move.(Validatable); ok {
+			if !wordMove.ValidateWord(IcelandicDictionary) {
+				t.Errorf(
+					"Invalid word '%v' generated",
+					wordMove.ContainedWord(),
+				)
 			}
 		}
 	}

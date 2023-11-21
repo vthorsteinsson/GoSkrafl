@@ -21,3 +21,6 @@ main/main
 
 # Binary executable
 GoSkrafl
+
+# Deployment script
+go-app/deploy.sh

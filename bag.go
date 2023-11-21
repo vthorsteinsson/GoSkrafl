@@ -172,8 +172,7 @@ var NewEnglishTileSet = initNewEnglishTileSet()
 func makeBag(tileSet *TileSet) *Bag {
 	// Make a fresh array for the bag and copy the tile set to it
 	bag := &Bag{}
-	bag.Tiles = make([]Tile, len(tileSet.Tiles))
-	copy(bag.Tiles, tileSet.Tiles)
+	bag.Tiles = []Tile(tileSet.Tiles)
 	// Create an array of tile pointers as the initial contents of the bag
 	bag.Contents = make([]*Tile, len(bag.Tiles))
 	for i := range bag.Contents {
