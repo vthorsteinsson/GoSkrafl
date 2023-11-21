@@ -81,14 +81,14 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 		return
 	}
 
-	if len(rackRunes) == 0 || len(rackRunes) > 7 {
+	if len(rackRunes) == 0 || len(rackRunes) > RackSize {
 		msg := "Invalid rack.\n"
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
 
-	if len(req.Board) != 15 {
-		msg := "Invalid board. Must be 15 rows.\n"
+	if len(req.Board) != BoardSize {
+		msg := fmt.Sprintf("Invalid board. Must be %v rows.\n", BoardSize)
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
@@ -96,8 +96,12 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	board := NewBoard(boardType)
 	for r, rowString := range req.Board {
 		row := []rune(rowString)
-		if len(row) != 15 {
-			msg := fmt.Sprintf("Invalid board row (#%v). Must be 15 characters long.\n", r)
+		if len(row) != BoardSize {
+			msg := fmt.Sprintf(
+				"Invalid board row (#%v). Must be %v characters long.\n",
+				r,
+				BoardSize,
+			)
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}

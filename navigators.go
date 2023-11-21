@@ -465,6 +465,7 @@ func (lfn *LeftFindNavigator) Accept(matched []rune, final bool, state *navState
 // This is done once at the start of move generation.
 type LeftPermutationNavigator struct {
 	rack      []rune
+	hasBlank  bool
 	stack     []leftPermItem
 	maxLeft   int
 	leftParts [][]*LeftPart
@@ -500,22 +501,25 @@ func (lp *LeftPart) String() string {
 
 // Init initializes a fresh LeftPermutationNavigator using the given rack
 func (lpn *LeftPermutationNavigator) Init(rack []rune) {
-	lpn.rack = rack
+	// Copy rack into lpn.rack
+	lenRack := len(rack)
+	lpn.rack = make([]rune, lenRack)
+	copy(lpn.rack, rack)
 	// One tile from the rack will be put on the anchor square;
 	// the rest is available to be played to the left of the anchor.
 	// We thus find all permutations involving all rack tiles except
 	// one.
-	lenRack := len(lpn.rack)
 	if lenRack <= 1 {
 		// No left permutation possible
 		lpn.maxLeft = 0
 	} else {
 		lpn.maxLeft = lenRack - 1
 	}
-	lpn.stack = make([]leftPermItem, 0)
+	lpn.hasBlank = ContainsRune(lpn.rack, '?')
+	lpn.stack = make([]leftPermItem, 0, 8)
 	lpn.leftParts = make([][]*LeftPart, lpn.maxLeft)
 	for i := 0; i < lpn.maxLeft; i++ {
-		lpn.leftParts[i] = make([]*LeftPart, 0)
+		lpn.leftParts[i] = make([]*LeftPart, 0, 8)
 	}
 }
 
@@ -532,7 +536,7 @@ func (lpn *LeftPermutationNavigator) LeftParts(length int) []*LeftPart {
 // PushEdge determines whether the navigation should proceed into
 // an edge having chr as its first letter
 func (lpn *LeftPermutationNavigator) PushEdge(chr rune) bool {
-	if !ContainsRune(lpn.rack, chr) && !ContainsRune(lpn.rack, '?') {
+	if !lpn.hasBlank && !ContainsRune(lpn.rack, chr) {
 		return false
 	}
 	lpn.stack = append(lpn.stack, leftPermItem{lpn.rack, lpn.index})
@@ -563,14 +567,18 @@ func (lpn *LeftPermutationNavigator) IsAccepting() bool {
 // given character
 func (lpn *LeftPermutationNavigator) Accepts(chr rune) bool {
 	exactMatch := ContainsRune(lpn.rack, chr)
-	if !exactMatch && !ContainsRune(lpn.rack, '?') {
+	if !exactMatch && !lpn.hasBlank {
 		return false
 	}
 	lpn.index++
 	if exactMatch {
 		lpn.rack = RemoveRune(lpn.rack, chr)
 	} else {
+		// Matched a blank
 		lpn.rack = RemoveRune(lpn.rack, '?')
+		// There might be a second blank in the rack,
+		// so we need to check again
+		lpn.hasBlank = ContainsRune(lpn.rack, '?')
 	}
 	return true
 }
@@ -579,8 +587,13 @@ func (lpn *LeftPermutationNavigator) Accepts(chr rune) bool {
 // whether it is a final word
 func (lpn *LeftPermutationNavigator) Accept(matched []rune, final bool, state *navState) {
 	ix := len(matched) - 1
-	lpn.leftParts[ix] = append(lpn.leftParts[ix],
-		&LeftPart{matched: matched, rack: lpn.rack, state: state},
+	lpn.leftParts[ix] = append(
+		lpn.leftParts[ix],
+		&LeftPart{
+			matched: matched,
+			rack:    lpn.rack,
+			state:   state,
+		},
 	)
 }
 

@@ -257,7 +257,7 @@ func (ern *ExtendRightNavigator) Accept(matched []rune, final bool, state *navSt
 	// Calculate the starting index within the axis
 	start := ern.index - len(matched)
 	// The original rack
-	rack := ern.axis.rackRunes
+	rack := ern.axis.rack
 	for i, meaning := range matched {
 		sq := ern.axis.sq[start+i]
 		if sq.Tile == nil {
@@ -285,9 +285,8 @@ type Axis struct {
 	// A bitmap of the letters in the rack, having all bits set if
 	// the rack has a blank ('?') in it
 	rackSet uint
-	// rackString is the original rack, stored as a string
-	rackString string
-	rackRunes  []rune
+	// The original rack, as an array of runes
+	rack []rune
 	// Array of convenience pointers to the board squares on this Axis
 	sq [BoardSize]*Square
 	// A bitmap of the letters that are allowed on each square,
@@ -304,8 +303,7 @@ func (axis *Axis) Init(state *GameState, rackSet uint, index int, horizontal boo
 	axis.state = state
 	axis.rackSet = rackSet
 	axis.horizontal = horizontal
-	axis.rackString = state.Rack.AsString()
-	axis.rackRunes = state.Rack.AsRunes()
+	axis.rack = state.Rack.AsRunes()
 	board := state.Board
 	startSquare := board.StartSquare()
 	// Build an array of pointers to the squares on this axis
@@ -385,10 +383,11 @@ func (axis *Axis) Allows(index int, letter rune) bool {
 // genMovesFromAnchor returns the available moves that use the given square
 // within the Axis as an anchor
 func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*LeftPart) []Move {
-	dawg, board := axis.state.Dawg, axis.state.Board
+	dawg, board, rack := axis.state.Dawg, axis.state.Board, axis.rack
 	sq := axis.sq[anchor]
 
-	// Do we have a left part already on the board?
+	// Do we have a left part already on the board,
+	// just before this anchor?
 	if maxLeft == 0 && anchor > 0 && axis.sq[anchor-1].Tile != nil {
 		// Yes: try to complete it
 		var direction int
@@ -418,7 +417,7 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 		// We found a matching prefix in the graph:
 		// do an ExtendRight from that location, using the whole rack
 		var ern ExtendRightNavigator
-		ern.Init(axis, anchor, axis.rackRunes)
+		ern.Init(axis, anchor, rack)
 		dawg.Resume(&ern, lfn.state, left)
 		// Return the move list accumulated by the ExtendRightNavigator
 		return ern.moves
@@ -429,14 +428,15 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 	// tiles on the anchor square itself and to its right
 	moves := make([]Move, 0)
 	var ern ExtendRightNavigator
-	ern.Init(axis, anchor, axis.rackRunes)
+	ern.Init(axis, anchor, rack)
 	dawg.Navigate(&ern)
 	// Collect the moves found so far
 	moves = append(moves, ern.moves...)
 
 	// Follow this by an effort to permute left prefixes into the
 	// open space to the left of the anchor square, if any
-	for leftLen := 1; leftLen <= maxLeft; leftLen++ {
+	leftReach := min(maxLeft, len(rack)-1)
+	for leftLen := 1; leftLen <= leftReach; leftLen++ {
 		// Try all left prefixes of length leftLen
 		leftList := leftParts[leftLen-1]
 		for _, leftPart := range leftList {
@@ -451,15 +451,8 @@ func (axis *Axis) genMovesFromAnchor(anchor int, maxLeft int, leftParts [][]*Lef
 	return moves
 }
 
-func min(i1, i2 int) int {
-	if i1 <= i2 {
-		return i1
-	}
-	return i2
-}
-
 // GenerateMoves returns a list of all legal moves along this Axis
-func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
+func (axis *Axis) GenerateMoves(leftParts [][]*LeftPart) []Move {
 	moves := make([]Move, 0)
 	lastAnchor := -1
 	// Process the anchors, one by one, from left to right
@@ -480,8 +473,9 @@ func (axis *Axis) GenerateMoves(lenRack int, leftParts [][]*LeftPart) []Move {
 				openCnt++
 				left--
 			}
-			moves = append(moves,
-				axis.genMovesFromAnchor(i, min(openCnt, lenRack-1), leftParts)...,
+			moves = append(
+				moves,
+				axis.genMovesFromAnchor(i, openCnt, leftParts)...,
 			)
 		}
 		lastAnchor = i
@@ -500,7 +494,6 @@ func (state *GameState) GenerateMoves() []Move {
 	// Generate a bit map for the letters in the rack. If the rack
 	// contains blank tiles ('?'), the bit map will have all bits set.
 	rackSet := state.Dawg.alphabet.MakeSet(rack)
-	lenRack := len(rack)
 	leftParts := FindLeftParts(state.Dawg, rack)
 	// Result channel containing up to BoardSize*2 move lists
 	resultMoves := make(chan []Move, BoardSize*2)
@@ -510,7 +503,7 @@ func (state *GameState) GenerateMoves() []Move {
 		var axis Axis
 		axis.Init(state, rackSet, index, horizontal)
 		// Generate a list of moves and send it on the result channel
-		resultMoves <- axis.GenerateMoves(lenRack, leftParts)
+		resultMoves <- axis.GenerateMoves(leftParts)
 	}
 	// Start the 30 goroutines (columns and rows = 2 * BoardSize)
 	// Horizontal rows
