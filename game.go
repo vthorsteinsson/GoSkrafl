@@ -154,13 +154,13 @@ func NewSowpodsGame(boardType string) *Game {
 	return game
 }
 
-func NewState(dawg *Dawg, tileSet *TileSet, board *Board, rack *Rack, bagSize int) *GameState {
+func NewState(dawg *Dawg, tileSet *TileSet, board *Board, rack *Rack, exchangeForbidden bool) *GameState {
 	return &GameState{
 		Dawg:              dawg,
 		TileSet:           tileSet,
 		Board:             board,
 		Rack:              rack,
-		exchangeForbidden: bagSize < RackSize,
+		exchangeForbidden: exchangeForbidden,
 	}
 }
 
@@ -168,12 +168,13 @@ func NewState(dawg *Dawg, tileSet *TileSet, board *Board, rack *Rack, bagSize in
 // game in a minimal manner so that a robot player can decide on a move
 func (game *Game) State() *GameState {
 	player := game.PlayerToMove()
+	exchangeForbidden := game.Bag.TileCount() < RackSize
 	return NewState(
 		game.Dawg,
 		game.TileSet,
 		&game.Board,
 		&game.Racks[player],
-		game.Bag.TileCount(),
+		exchangeForbidden,
 	)
 }
 

@@ -452,14 +452,14 @@ func TestAxis(t *testing.T) {
 		t.Errorf("Board should have start tile")
 	}
 	rack := NewRack([]rune("prófaðu"), NewIcelandicTileSet)
+	rackRunes := rack.AsRunes()
 	state := NewState(
 		IcelandicDictionary,
 		NewIcelandicTileSet,
 		board,
 		rack,
-		100,
+		false,
 	)
-	rackRunes := rack.AsRunes()
 	rackSet := state.Dawg.alphabet.MakeSet(rackRunes)
 	leftParts := FindLeftParts(state.Dawg, rackRunes)
 	var axis Axis

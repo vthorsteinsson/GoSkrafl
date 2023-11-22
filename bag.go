@@ -45,6 +45,8 @@ type Bag struct {
 type TileSet struct {
 	Tiles  []Tile
 	Scores map[rune]int
+	// The initial size of the bag (before tiles are drawn)
+	Size int
 }
 
 // initTileSet makes a complete tile set, given a scoring map
@@ -72,7 +74,7 @@ func initTileSet(scores map[rune]int, tiles map[rune]int) *TileSet {
 	if i != numTiles {
 		panic("Did not assign all tiles in tile set")
 	}
-	return &TileSet{Tiles: tileSet, Scores: scores}
+	return &TileSet{Tiles: tileSet, Scores: scores, Size: numTiles}
 }
 
 // initNewIcelandicTileSet creates the "new" Icelandic

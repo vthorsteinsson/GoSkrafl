@@ -17,12 +17,11 @@ import (
 
 // A class describing incoming requests
 type SkraflRequest struct {
-	Dictionary string   `json:"dictionary"`
-	BoardType  string   `json:"board_type"`
-	Board      []string `json:"board"`
-	Rack       string   `json:"rack"`
-	BagSize    int      `json:"bag_size"`
-	Limit      int      `json:"limit"`
+	Locale    string   `json:"locale"`
+	BoardType string   `json:"board_type"`
+	Board     []string `json:"board"`
+	Rack      string   `json:"rack"`
+	Limit     int      `json:"limit"`
 }
 
 // A kludge to be able to marshal a Move with its score
@@ -47,18 +46,42 @@ type HeaderJson struct {
 // Handle an incoming request
 func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	// Set the board type, dictionary and tile set
-	if req.BoardType != "standard" && req.BoardType != "explo" {
+	boardType := req.BoardType
+	if boardType != "standard" && boardType != "explo" {
 		msg := "Invalid board type. Must be 'standard' or 'explo'.\n"
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	boardType := req.BoardType
+
+	// Set the dictionary from the request's locale
+	var dictionary string
+	locale := req.Locale
+	// Obtain the first three characters of locale
+	locale3 := locale
+	if len(locale) > 3 {
+		locale3 = locale[0:3]
+	}
+	if locale == "" || locale == "en_US" || locale == "en-US" {
+		// U.S. English
+		dictionary = "otcwl"
+	} else if locale == "en" || locale3 == "en_" || locale3 == "en-" {
+		// U.K. English (SOWPODS)
+		dictionary = "sowpods"
+	} else if locale == "is" || locale3 == "is_" || locale3 == "is-" {
+		// Icelandic
+		dictionary = "ice"
+	} else if locale == "pl" || locale3 == "pl_" || locale3 == "pl-" {
+		// Polish
+		dictionary = "osps"
+	} else {
+		// Default to U.S. English for other locales
+		dictionary = "otcwl"
+	}
 
 	var tileSet *TileSet
 	var dawg *Dawg
-	rackRunes := []rune(req.Rack)
 
-	switch req.Dictionary {
+	switch dictionary {
 	case "otcwl":
 		dawg = OtcwlDictionary
 		if boardType == "explo" {
@@ -79,15 +102,9 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	case "osps":
 		dawg = OspsDictionary
 		tileSet = PolishTileSet
-	default:
-		msg := fmt.Sprintf(
-			"Unknown dictionary '%v'. Specify one of 'otcwl', 'sowpods', 'osps', or 'ice'.\n",
-			req.Dictionary,
-		)
-		http.Error(w, msg, http.StatusBadRequest)
-		return
 	}
 
+	rackRunes := []rune(req.Rack)
 	if len(rackRunes) == 0 || len(rackRunes) > RackSize {
 		msg := "Invalid rack.\n"
 		http.Error(w, msg, http.StatusBadRequest)
@@ -161,12 +178,13 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	}
 
 	// Create a fresh GameState object, then find the valid moves
+	exchangeForbidden := tileSet.Size-board.NumTiles-2*RackSize < RackSize
 	state := NewState(
 		dawg,
 		tileSet,
 		board,
 		rack,
-		req.BagSize,
+		exchangeForbidden,
 	)
 
 	// Generate all valid moves and calculate their scores
