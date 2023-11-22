@@ -74,7 +74,7 @@ func runServer() {
 
 func main() {
 	// Modify the following depending on the type of Game wanted
-	dict := flag.String("d", "ice", "Dictionary to use (twl06, sowpods, ice)")
+	dict := flag.String("d", "ice", "Dictionary to use (otcwl, sowpods, osps, ice)")
 	boardType := flag.String("b", "standard", "Board type (standard, explo)")
 	num := flag.Int("n", 10, "Number of games to simulate")
 	quiet := flag.Bool("q", false, "Suppress output of game state and moves")
@@ -87,14 +87,16 @@ func main() {
 	}
 	gameConstructor := skrafl.NewIcelandicGame
 	switch *dict {
-	case "twl06":
-		gameConstructor = skrafl.NewTwl06Game
+	case "octwl":
+		gameConstructor = skrafl.NewOtcwlGame
 	case "sowpods":
 		gameConstructor = skrafl.NewSowpodsGame
+	case "osps":
+		gameConstructor = skrafl.NewOspsGame
 	case "ice":
 		// Already set
 	default:
-		fmt.Printf("Unknown dictionary '%v'. Specify one of 'twl06', 'sowpods' or 'ice'.\n", *dict)
+		fmt.Printf("Unknown dictionary '%v'. Specify one of 'otcwl', 'sowpods', 'osps', or 'ice'.\n", *dict)
 		os.Exit(1)
 	}
 	robotA := skrafl.NewHighScoreRobot()

@@ -44,8 +44,11 @@ var dawgFS embed.FS
 // TODO: move this to the DAWG file.
 const IcelandicAlphabet = "aábdðeéfghiíjklmnoóprstuúvxyýþæö"
 
-// EnglishAlphabet contains the English SCRABBLE(tm) alphabet.
+// English alphabet, used inter alia for the U.S. and U.K.
 const EnglishAlphabet = "abcdefghijklmnopqrstuvwxyz"
+
+// Polish alphabet
+const PolishAlphabet = "aąbcćdeęfghijklłmnńoóprsśtuwyzźż"
 
 // Dawg encapsulates the externally generated,
 // compressed Directed Acyclic Word Graph as a byte buffer.
@@ -369,14 +372,18 @@ func makeDawg(fileName string, alphabet string) *Dawg {
 }
 
 // IcelandicDictionary is a Dawg instance containing the Icelandic
-// Scrabble(tm) dictionary, as derived from the BÍN database
+// dictionary, as derived from the BÍN database
 // (Beygingarlýsing íslensks nútímamáls)
 var IcelandicDictionary = makeDawg("ordalisti.bin.dawg", IcelandicAlphabet)
 
-// Twl06Dictionary is a Dawg instance containing the Tournament
-// Word List 06, used in U.S. SCRABBLE(tm).
-var Twl06Dictionary = makeDawg("TWL06.bin.dawg", EnglishAlphabet)
+// OtcwlDictionary is a Dawg instance containing the word list
+// used in the U.S.
+var OtcwlDictionary = makeDawg("otcwl2014.bin.dawg", EnglishAlphabet)
 
-// SowpodsDictionary is a Dawg instance containing the SOWPODS
-// word list, used in European and U.S. SCRABBLE(tm).
+// SowpodsDictionary is a Dawg instance containing the word list
+// used in the U.K. and other English speaking countries besides the U.S.
 var SowpodsDictionary = makeDawg("sowpods.bin.dawg", EnglishAlphabet)
+
+// OspsDictionary is a Dawg instance containing the
+// word list used for Polish.
+var OspsDictionary = makeDawg("osps37.bin.dawg", PolishAlphabet)

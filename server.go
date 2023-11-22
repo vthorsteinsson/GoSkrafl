@@ -59,8 +59,8 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	rackRunes := []rune(req.Rack)
 
 	switch req.Dictionary {
-	case "twl06":
-		dawg = Twl06Dictionary
+	case "otcwl":
+		dawg = OtcwlDictionary
 		if boardType == "explo" {
 			tileSet = NewEnglishTileSet
 		} else {
@@ -76,9 +76,14 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 	case "ice":
 		dawg = IcelandicDictionary
 		tileSet = NewIcelandicTileSet
-	// TODO: Add Polish dictionary
+	case "osps":
+		dawg = OspsDictionary
+		tileSet = PolishTileSet
 	default:
-		msg := fmt.Sprintf("Unknown dictionary '%v'. Specify one of 'twl06', 'sowpods' or 'ice'.\n", req.Dictionary)
+		msg := fmt.Sprintf(
+			"Unknown dictionary '%v'. Specify one of 'otcwl', 'sowpods', 'osps', or 'ice'.\n",
+			req.Dictionary,
+		)
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}

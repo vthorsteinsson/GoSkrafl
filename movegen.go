@@ -2,7 +2,7 @@
 // Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file contains code to generate all valid tile moves
-// on a SCRABBLE(tm) board, given a player's rack.
+// on a board, given a player's rack.
 
 /*
 
@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /*
 
-The code herein finds all legal moves on a SCRABBLE(tm)-like board.
+The code herein finds all legal moves on a board.
 
 The algorithm is based on the classic paper by Appel & Jacobson,
 "The World's Fastest Scrabble Program",
@@ -506,17 +506,13 @@ func (state *GameState) GenerateMoves() []Move {
 		resultMoves <- axis.GenerateMoves(leftParts)
 	}
 	// Start the 30 goroutines (columns and rows = 2 * BoardSize)
-	// Horizontal rows
 	for i := 0; i < BoardSize; i++ {
-		go kickOffAxis(i, true)
-	}
-	// Vertical columns
-	for i := 0; i < BoardSize; i++ {
-		go kickOffAxis(i, false)
+		go kickOffAxis(i, true)  // Horizontal
+		go kickOffAxis(i, false) // Vertical
 	}
 	// Collect move candidates from all goroutines and
 	// append them to the moves list
-	moves := make([]Move, 0)
+	moves := make([]Move, 0, 256) // Allocate space for 256 moves
 	for i := 0; i < BoardSize*2; i++ {
 		moves = append(moves, (<-resultMoves)...)
 	}

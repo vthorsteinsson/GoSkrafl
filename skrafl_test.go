@@ -1,5 +1,5 @@
 // skrafl_test.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
 // This file contains tests for the skrafl package
 
 /*
@@ -608,13 +608,14 @@ func TestRobot(t *testing.T) {
 			t.Errorf("Incorrect number of moves recorded")
 		}
 	}
-	// Cycle through 5 rounds of 2 x three simulated games, each
-	// with its own board type, Dawg and alphabet
+	// Cycle through 5 rounds of 2 (board types) x 4 (dictionaries)
+	// simulated games, each with its own board type, Dawg and alphabet
 	for cycle := 0; cycle < 5; cycle++ {
 		for _, boardType := range []string{"standard", "explo"} {
 			runTest(boardType, NewIcelandicGame)
-			runTest(boardType, NewTwl06Game)
+			runTest(boardType, NewOtcwlGame)
 			runTest(boardType, NewSowpodsGame)
+			runTest(boardType, NewOspsGame)
 		}
 	}
 }

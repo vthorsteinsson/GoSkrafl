@@ -104,11 +104,24 @@ func NewIcelandicGame(boardType string) *Game {
 	return game
 }
 
-// NewTwl06Game instantiates a new Game with the English TileSet
+// NewOspsGame instantiates a new Game with the Polish TileSet
 // and returns a reference to it
-func NewTwl06Game(boardType string) *Game {
-	if Twl06Dictionary == nil {
-		// Unable to read TWL06 DAWG
+func NewOspsGame(boardType string) *Game {
+	if OspsDictionary == nil {
+		// Unable to read Polish (OSPS37) DAWG
+		return nil
+	}
+	game := &Game{}
+	game.Init(boardType, PolishTileSet, OspsDictionary)
+	return game
+}
+
+// NewOtcwlGame instantiates a new Game with the
+// English ('standard' board type) or New English ('explo' board type)
+// TileSet, and returns a reference to it
+func NewOtcwlGame(boardType string) *Game {
+	if OtcwlDictionary == nil {
+		// Unable to read OTCWL2014 DAWG
 		return nil
 	}
 	game := &Game{}
@@ -118,12 +131,13 @@ func NewTwl06Game(boardType string) *Game {
 	} else {
 		tileSet = EnglishTileSet
 	}
-	game.Init(boardType, tileSet, Twl06Dictionary)
+	game.Init(boardType, tileSet, OtcwlDictionary)
 	return game
 }
 
-// NewSowpodsGame instantiates a new Game with the English TileSet
-// and returns a reference to it
+// NewSowpodsGame instantiates a new Game with the
+// English ('standard' board type) or New English ('explo' board type)
+// TileSet, and returns a reference to it
 func NewSowpodsGame(boardType string) *Game {
 	if SowpodsDictionary == nil {
 		// Unable to read SOWPODS DAWG

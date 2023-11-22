@@ -1,7 +1,8 @@
 // robot.go
-// Copyright (C) 2018 Vilhjálmur Þorsteinsson
+// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
-// This file implements SCRABBLE(tm) playing robots
+// This file implements robots that play a crossword game
+// in the SCRABBLE(tm) genre.
 
 /*
 

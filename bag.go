@@ -109,8 +109,36 @@ func initNewIcelandicTileSet() *TileSet {
 // NewIcelandicTileSet is the new standard Icelandic tile set
 var NewIcelandicTileSet = initNewIcelandicTileSet()
 
-// initEnglishTileSet creates the standard English
-// SCRABBLE(tm) tile set
+// initPolishTileSet creates the Polish tile set
+func initPolishTileSet() *TileSet {
+
+	scores := map[rune]int{
+		'a': 1, 'ą': 5, 'b': 3, 'c': 2, 'ć': 6,
+		'd': 2, 'e': 1, 'ę': 5, 'f': 5, 'g': 3,
+		'h': 3, 'i': 1, 'j': 3, 'k': 3, 'l': 2,
+		'ł': 3, 'm': 2, 'n': 1, 'ń': 7, 'o': 1,
+		'ó': 5, 'p': 2, 'r': 1, 's': 1, 'ś': 5,
+		't': 2, 'u': 3, 'w': 1, 'y': 2, 'z': 1,
+		'ź': 9, 'ż': 5, '?': 0,
+	}
+
+	tiles := map[rune]int{
+		'a': 9, 'ą': 1, 'b': 2, 'c': 3, 'ć': 1,
+		'd': 3, 'e': 7, 'ę': 1, 'f': 1, 'g': 2,
+		'h': 2, 'i': 8, 'j': 2, 'k': 3, 'l': 3,
+		'ł': 2, 'm': 3, 'n': 5, 'ń': 1, 'o': 6,
+		'ó': 1, 'p': 3, 'r': 4, 's': 4, 'ś': 1,
+		't': 3, 'u': 2, 'w': 4, 'y': 4, 'z': 5,
+		'ź': 1, 'ż': 1, '?': 2,
+	}
+
+	return initTileSet(scores, tiles)
+}
+
+// PolishTileSet is the standard Polish tile set
+var PolishTileSet = initPolishTileSet()
+
+// initEnglishTileSet creates the standard English tile set
 func initEnglishTileSet() *TileSet {
 
 	// The scores of each letter
