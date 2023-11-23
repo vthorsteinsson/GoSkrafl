@@ -212,7 +212,7 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 		Moves:   movesWithScores,
 	}
 	if err := json.NewEncoder(w).Encode(result); err != nil {
-		// Not valid JSON
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// Unable to generate valid JSON
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
