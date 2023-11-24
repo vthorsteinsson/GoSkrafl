@@ -41,7 +41,7 @@ type Move interface {
 // against a dictionary (DAWG)
 type Validatable interface {
 	Move
-	ContainedWord() string
+	CleanWord() string
 	ValidateWord(*Dawg) bool
 }
 
@@ -135,6 +135,9 @@ func (move *TileMove) Coordinate() string {
 }
 
 // Return a string description of a tile move
+// Note that blank tiles will be shown as a
+// question mark followed by their assigned meaning,
+// e.g. "e?xample"
 func (move *TileMove) String() string {
 	return move.Coordinate() + " " + move.Word
 }
@@ -215,6 +218,11 @@ func (move *TileMove) Init(board *Board, covers Covers, validateWords bool) {
 	for {
 		if cover, ok := covers[Coordinate{sq.Row, sq.Col}]; ok {
 			// This square is being covered by the tile move
+			if cover.Letter == '?' {
+				// This is a blank tile: append a question
+				// mark plus the assigned meaning
+				word = append(word, '?')
+			}
 			word = append(word, cover.Meaning)
 		} else {
 			// This square must be covered by a previously laid tile
@@ -309,7 +317,7 @@ func (move *TileMove) IsValid(game *Game) bool {
 	if move.Word == IllegalMoveWord || move.Word == "" {
 		return false
 	}
-	if !game.Dawg.Find(move.Word) {
+	if !move.ValidateWord(game.Dawg) {
 		return false
 	}
 	// Check the cross words
@@ -330,12 +338,13 @@ func (move *TileMove) IsValid(game *Game) bool {
 	return true
 }
 
-func (move *TileMove) ContainedWord() string {
-	return move.Word
+func (move *TileMove) CleanWord() string {
+	// Return move.Word after deleting question marks from the string
+	return strings.Replace(move.Word, "?", "", -1)
 }
 
 func (move *TileMove) ValidateWord(dawg *Dawg) bool {
-	return dawg.Find(move.Word)
+	return dawg.Find(move.CleanWord())
 }
 
 // Apply moves the tiles in the Covers from the player's Rack

@@ -475,7 +475,7 @@ func TestAxis(t *testing.T) {
 			if !wordMove.ValidateWord(IcelandicDictionary) {
 				t.Errorf(
 					"Invalid word '%v' generated",
-					wordMove.ContainedWord(),
+					wordMove.CleanWord(),
 				)
 			}
 		}
