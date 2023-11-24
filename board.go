@@ -123,7 +123,7 @@ var colIds = [BoardSize]string{
 var rowIds = [BoardSize]string{
 	"A", "B", "C", "D", "E",
 	"F", "G", "H", "I", "J",
-	"L", "M", "N", "O", "P",
+	"K", "L", "M", "N", "O",
 }
 
 // Board represents the board as a matrix of Squares,
