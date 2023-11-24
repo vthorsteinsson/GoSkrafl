@@ -28,6 +28,3 @@
 GoSkrafl
 *.code-workspace
 .vscode
-
-# Include the binary DAWG files
-!dicts/*.bin.dawg

@@ -304,9 +304,9 @@ func (dawg *Dawg) MatchRunes(pattern []rune) []string {
 // CrossSet calculates a bit-mapped set of allowed letters
 // in a cross-check set, given a left/top and right/bottom
 // string that intersects the square being checked.
-func (dawg *Dawg) CrossSet(left, right string) uint {
-	lenLeft := len([]rune(left))
-	key := left + "?" + right
+func (dawg *Dawg) CrossSet(left, right []rune) uint {
+	lenLeft := len(left)
+	key := string(left) + "?" + string(right)
 	fetchFunc := func(key string) uint {
 		alphabetLength := dawg.alphabet.Length()
 		// We ask the DAWG to find all words consisting of the

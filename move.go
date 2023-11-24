@@ -69,10 +69,14 @@ type FinalMove struct {
 type TileMove struct {
 	TopLeft     Coordinate
 	BottomRight Coordinate
-	Covers      Covers
-	Horizontal  bool
-	Word        string
-	CachedScore *int
+	// The PrefixLength is a count of the number of tiles
+	// that were already on the board and that formed a prefix
+	// to this move
+	PrefixLength int
+	Covers       Covers
+	Horizontal   bool
+	Word         string
+	CachedScore  *int
 	// If ValidateWords is true, IsValid() should check all words
 	// formed by this move against the game dictionary
 	ValidateWords bool
@@ -119,10 +123,13 @@ func NewUncheckedTileMove(board *Board, covers Covers) *TileMove {
 // Return the coordinate of a tile move
 func (move *TileMove) Coordinate() string {
 	var coord string
+	// If the move extended a word that was already on the board,
+	// we need to find the coordinate of the first letter of the word
+	// including the prefix that was extended
 	if move.Horizontal {
-		coord = rowIds[move.TopLeft.Row] + colIds[move.TopLeft.Col]
+		coord = rowIds[move.TopLeft.Row] + colIds[move.TopLeft.Col-move.PrefixLength]
 	} else {
-		coord = colIds[move.TopLeft.Col] + rowIds[move.TopLeft.Row]
+		coord = colIds[move.TopLeft.Col] + rowIds[move.TopLeft.Row-move.PrefixLength]
 	}
 	return coord
 }
@@ -203,18 +210,19 @@ func (move *TileMove) Init(board *Board, covers Covers, validateWords bool) {
 	}
 	// Start with any left prefix that is being extended
 	word := board.WordFragment(top, left, reverse)
+	move.PrefixLength = len(word)
 	// Next, traverse the covering line from top left to bottom right
 	for {
 		if cover, ok := covers[Coordinate{sq.Row, sq.Col}]; ok {
 			// This square is being covered by the tile move
-			word += string(cover.Meaning)
+			word = append(word, cover.Meaning)
 		} else {
 			// This square must be covered by a previously laid tile
 			if sq.Tile == nil {
 				move.Word = IllegalMoveWord
 				return
 			}
-			word += string(sq.Tile.Meaning)
+			word = append(word, sq.Tile.Meaning)
 		}
 		if sq.Row == bottom && sq.Col == right {
 			// This was the last tile laid down in the move:
@@ -229,8 +237,8 @@ func (move *TileMove) Init(board *Board, covers Covers, validateWords bool) {
 		}
 	}
 	// Add any suffix that may already have been on the board
-	word += board.WordFragment(bottom, right, direction)
-	move.Word = word
+	word = append(word, board.WordFragment(bottom, right, direction)...)
+	move.Word = string(word)
 }
 
 // IsValid returns true if the TileMove is valid in the current Game
@@ -309,7 +317,11 @@ func (move *TileMove) IsValid(game *Game) bool {
 		left, right := game.Board.CrossWords(coord.Col, coord.Row, !move.Horizontal)
 		if len(left) > 0 || len(right) > 0 {
 			// There is a cross word here: check it
-			if !game.Dawg.Find(left + string(cover.Meaning) + right) {
+			prefix := make([]rune, 0, len(left)+len(right)+1)
+			prefix = append(prefix, left...)
+			prefix = append(prefix, cover.Meaning)
+			prefix = append(prefix, right...)
+			if !game.Dawg.Find(string(prefix)) {
 				// Not found in the dictionary
 				return false
 			}

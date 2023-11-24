@@ -347,20 +347,24 @@ func (board *Board) Fragment(row, col int, direction int) []*Tile {
 // WordFragment returns the word formed by the tile sequence emanating
 // from the given square in the indicated direction, not including the
 // square itself.
-func (board *Board) WordFragment(row, col int, direction int) (result string) {
+func (board *Board) WordFragment(row, col int, direction int) (result []rune) {
 	frag := board.Fragment(row, col, direction)
+	lenFrag := len(frag)
+	r := make([]rune, lenFrag)
 	if direction == LEFT || direction == ABOVE {
 		// We need to reverse the order of the fragment
-		for _, tile := range frag {
-			result = string(tile.Meaning) + result
+		for ix, tile := range frag {
+			// Assign the tile meaning to r in reverse order
+			r[lenFrag-1-ix] = tile.Meaning
 		}
 	} else {
 		// The fragment is in correct reading order
-		for _, tile := range frag {
-			result += string(tile.Meaning)
+		for ix, tile := range frag {
+			// Append the tile's meaning to the result
+			r[ix] = tile.Meaning
 		}
 	}
-	return // result
+	return r
 }
 
 // CrossScore returns the sum of the scores of the tiles crossing
@@ -393,7 +397,7 @@ func (board *Board) CrossScore(row, col int, horizontal bool) (hasCrossing bool,
 
 // CrossWords returns the word fragments above and below, or to the left and right of, the
 // given co-ordinate on the board.
-func (board *Board) CrossWords(row, col int, horizontal bool) (left, right string) {
+func (board *Board) CrossWords(row, col int, horizontal bool) (left, right []rune) {
 	var direction int
 	// The C ternary operator is sorely missed :-(
 	if horizontal {
@@ -401,16 +405,24 @@ func (board *Board) CrossWords(row, col int, horizontal bool) (left, right strin
 	} else {
 		direction = ABOVE
 	}
-	for _, tile := range board.Fragment(row, col, direction) {
-		left = string(tile.Meaning) + left
+	hfrag := board.Fragment(row, col, direction)
+	lenHfrag := len(hfrag)
+	left = make([]rune, lenHfrag)
+	for ix, tile := range hfrag {
+		// Assign the tile meaning to left in reverse order
+		left[lenHfrag-1-ix] = tile.Meaning
 	}
 	if horizontal {
 		direction = RIGHT
 	} else {
 		direction = BELOW
 	}
-	for _, tile := range board.Fragment(row, col, direction) {
-		right += string(tile.Meaning)
+	vfrag := board.Fragment(row, col, direction)
+	lenVfrag := len(vfrag)
+	right = make([]rune, lenVfrag)
+	for ix, tile := range vfrag {
+		// Assign the tile meaning to right in forward order
+		right[ix] = tile.Meaning
 	}
 	return // left, right
 }
