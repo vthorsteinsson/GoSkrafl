@@ -257,17 +257,17 @@ func (ern *ExtendRightNavigator) Accept(matched []rune, final bool, state *navSt
 	// Calculate the starting index within the axis
 	start := ern.index - len(matched)
 	// The original rack
-	rack := ern.axis.rack
+	rack := MakeRackTiles(ern.axis.rack)
 	for i, meaning := range matched {
 		sq := ern.axis.sq[start+i]
 		if sq.Tile == nil {
 			letter := meaning
-			if ContainsRune(rack, meaning) {
-				rack = RemoveRune(rack, meaning)
+			if rack.ContainsTile(meaning) {
+				rack.RemoveTile(meaning)
 			} else {
 				// Must be using a blank tile
 				letter = '?'
-				rack = RemoveRune(rack, '?')
+				rack.RemoveTile('?')
 			}
 			covers[Coordinate{sq.Row, sq.Col}] = Cover{letter, meaning}
 		}

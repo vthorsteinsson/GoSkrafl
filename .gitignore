@@ -24,3 +24,6 @@ GoSkrafl
 
 # Deployment script
 go-app/deploy.sh
+
+# Environment variables
+go-app/env.yaml

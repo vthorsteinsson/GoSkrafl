@@ -10,10 +10,10 @@ instance_class: F1
 inbound_services:
 - warmup
 
-env_variables:
-  PROJECT_ID: explo-dev
+includes:
+- env.yaml
 
 handlers:
 - url: /moves
   script: auto
-  # secure: always
+  secure: always
