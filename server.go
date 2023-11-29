@@ -15,8 +15,8 @@ import (
 	"unicode"
 )
 
-// A class describing incoming requests
-type SkraflRequest struct {
+// A class describing incoming /moves requests
+type MovesRequest struct {
 	Locale    string   `json:"locale"`
 	BoardType string   `json:"board_type"`
 	Board     []string `json:"board"`
@@ -43,24 +43,14 @@ type HeaderJson struct {
 	Moves   []MoveWithScore `json:"moves"`
 }
 
-// Handle an incoming request
-func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
-	// Set the board type, dictionary and tile set
-	boardType := req.BoardType
-	if boardType != "standard" && boardType != "explo" {
-		msg := "Invalid board type. Must be 'standard' or 'explo'.\n"
-		http.Error(w, msg, http.StatusBadRequest)
-		return
-	}
-
-	// Set the dictionary from the request's locale
-	var dictionary string
-	locale := req.Locale
+// Map a requested locale string to a dictionary and tile set
+func decodeLocale(locale string, boardType string) (*Dawg, *TileSet) {
 	// Obtain the first three characters of locale
 	locale3 := locale
 	if len(locale) > 3 {
 		locale3 = locale[0:3]
 	}
+	var dictionary string
 	if locale == "" || locale == "en_US" || locale == "en-US" {
 		// U.S. English
 		dictionary = "otcwl"
@@ -103,6 +93,23 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 		dawg = OspsDictionary
 		tileSet = PolishTileSet
 	}
+
+	return dawg, tileSet
+}
+
+// Handle an incoming /moves request
+func HandleMovesRequest(w http.ResponseWriter, req MovesRequest) {
+	// Set the board type, dictionary and tile set
+	boardType := req.BoardType
+	if boardType != "standard" && boardType != "explo" {
+		msg := "Invalid board type. Must be 'standard' or 'explo'.\n"
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	// Map the request's locale to a dawg and a tile set
+	locale := req.Locale
+	dawg, tileSet := decodeLocale(locale, boardType)
 
 	rackRunes := []rune(req.Rack)
 	if len(rackRunes) == 0 || len(rackRunes) > RackSize {
@@ -215,4 +222,55 @@ func HandleRequest(w http.ResponseWriter, req SkraflRequest) {
 		// Unable to generate valid JSON
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// Prepare an error/false response
+var OK_FALSE_RESPONSE = map[string]bool{"ok": false}
+
+type WordCheckRequest struct {
+	Locale string   `json:"locale"`
+	Word   string   `json:"word"`
+	Words  []string `json:"words"`
+}
+
+type WordCheckResultPair [2]interface{}
+
+// Handle a /wordcheck request
+func HandleWordCheckRequest(w http.ResponseWriter, req WordCheckRequest) {
+	words := req.Words
+
+	// Sanity check the word list: we should never need to
+	// check more than 16 words (major-axis word plus
+	// up to 15 cross-axis words)
+	if len(words) == 0 || len(words) > BoardSize+1 {
+		json.NewEncoder(w).Encode(OK_FALSE_RESPONSE)
+		return
+	}
+
+	// Obtain the correct DAWG for the given locale
+	dawg, _ := decodeLocale(req.Locale, "explo")
+
+	// Check the words against the dictionary
+	allValid := true
+	valid := make([]WordCheckResultPair, len(words))
+	for i, word := range words {
+		wordLen := len([]rune(word))
+		if wordLen == 0 || wordLen > BoardSize {
+			// This word is empty or too long, something is wrong
+			json.NewEncoder(w).Encode(OK_FALSE_RESPONSE)
+			return
+		}
+		found := dawg.Find(word)
+		valid[i] = WordCheckResultPair{word, found}
+		if !found {
+			allValid = false
+		}
+	}
+
+	result := map[string]interface{}{
+		"word":  req.Word, // Presently not used
+		"ok":    allValid,
+		"valid": valid,
+	}
+	json.NewEncoder(w).Encode(result)
 }

@@ -21,10 +21,11 @@ var ACCESS_KEY string
 // Corresponding Authorization header (or "" if no auth required)
 var AUTH_HEADER string
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func validate(w http.ResponseWriter, r *http.Request, req any) bool {
+	// We only accept POST requests
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
+		return false
 	}
 	// Check for a bearer authorization token,
 	// which must match the environment variable
@@ -39,19 +40,34 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				),
 				http.StatusUnauthorized,
 			)
-			return
+			return false
 		}
 	}
-	var req skrafl.SkraflRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		// Not valid JSON
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return false
 	}
-	skrafl.HandleRequest(w, req)
+	return true
 }
 
-func warmup(w http.ResponseWriter, r *http.Request) {
+func movesHandler(w http.ResponseWriter, r *http.Request) {
+	var req skrafl.MovesRequest
+	if !validate(w, r, &req) {
+		return
+	}
+	skrafl.HandleMovesRequest(w, req)
+}
+
+func wordcheckHandler(w http.ResponseWriter, r *http.Request) {
+	var req skrafl.WordCheckRequest
+	if !validate(w, r, &req) {
+		return
+	}
+	skrafl.HandleWordCheckRequest(w, req)
+}
+
+func warmupHandler(w http.ResponseWriter, r *http.Request) {
 	// No concrete action required
 	log.Println("Warmup request received")
 }
@@ -66,9 +82,10 @@ func main() {
 		AUTH_HEADER = "Bearer " + ACCESS_KEY
 	}
 	// Set up a dummy warmup handler
-	http.HandleFunc("/_ah/warmup", warmup)
-	// Set up the actual service handler
-	http.HandleFunc("/moves", handler)
+	http.HandleFunc("/_ah/warmup", warmupHandler)
+	// Set up the actual service handlers
+	http.HandleFunc("/moves", movesHandler)
+	http.HandleFunc("/wordcheck", wordcheckHandler)
 	// Establish the port number to listen on, defaulting to 8080
 	port := os.Getenv("PORT")
 	if port == "" {

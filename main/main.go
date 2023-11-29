@@ -53,22 +53,37 @@ func simulateGame(gameConstructor GameConstructor, boardType string,
 	return // scoreA, scoreB
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func movesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-	var req skrafl.SkraflRequest
+	var req skrafl.MovesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		// Not valid JSON
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	skrafl.HandleRequest(w, req)
+	skrafl.HandleMovesRequest(w, req)
+}
+
+func wordcheckHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	var req skrafl.WordCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Not valid JSON
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	skrafl.HandleWordCheckRequest(w, req)
 }
 
 func runServer() {
-	http.HandleFunc("/moves", handler)
+	http.HandleFunc("/moves", movesHandler)
+	http.HandleFunc("/wordcheck", wordcheckHandler)
 	http.ListenAndServe(":8080", nil)
 }
 
