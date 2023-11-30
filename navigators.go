@@ -214,9 +214,9 @@ func (fn *FindNavigator) IsAccepting() bool {
 // Accepts returns true if the navigator should accept and 'eat' the
 // given character
 func (fn *FindNavigator) Accepts(chr rune) bool {
-	// For the FindNavigator, we never enter an edge unless
-	// we have the correct character, so we simply advance
-	// the index and return true
+	if fn.word[fn.index] != chr {
+		return false
+	}
 	fn.index++
 	return true
 }
