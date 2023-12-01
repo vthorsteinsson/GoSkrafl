@@ -96,19 +96,20 @@ _Vilhjálmur Þorsteinsson, Reykjavík, Iceland._
 Contact me via GitHub for queries or information regarding GoSkrafl,
 for instance if you would like to use GoSkrafl as a basis for your
 own game program, server or website but prefer not to do so under the
-conditions of the GNU GPL v3 license (see below).
+conditions of the CC-BY-NC 4.0 license (see below).
 
 ### License
 
-*GoSkrafl - a concurrent crossword game engine and robot, written in Go*
+**GoSkrafl - a concurrent crossword game engine and robot, written in Go**
 
 *Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.*
 
-This set of programs is licensed under the Creative Commons
-Attribution-NonCommercial 4.0 International Public License (CC-BY-NC 4.0).
+This set of programs is licensed under the **Creative Commons
+Attribution-NonCommercial 4.0 International Public License (CC-BY-NC 4.0).**
 
 The full text of the license is available
-here: https://creativecommons.org/licenses/by-nc/4.0/
+here: https://creativecommons.org/licenses/by-nc/4.0/ - as well as in the
+LICENSE file in this repository.
 
 ### Trademarks
 
