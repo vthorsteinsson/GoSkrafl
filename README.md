@@ -104,18 +104,11 @@ conditions of the GNU GPL v3 license (see below).
 
 *Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.*
 
-This set of programs is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+This set of programs is licensed under the Creative Commons
+Attribution-NonCommercial 4.0 International Public License (CC-BY-NC 4.0).
 
-This set of programs is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-The full text of the GNU General Public License is available here:
-[http://www.gnu.org/licenses/gpl.html](http://www.gnu.org/licenses/gpl.html).
+The full text of the license is available
+here: https://creativecommons.org/licenses/by-nc/4.0/
 
 ### Trademarks
 
