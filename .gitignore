@@ -22,8 +22,9 @@ main/main
 # Binary executable
 GoSkrafl
 
-# Deployment script
+# Deployment scripts
 go-app/deploy.sh
+go-app/deploy-live.sh
 
 # Environment variables
 go-app/env.yaml
