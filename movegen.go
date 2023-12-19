@@ -133,7 +133,7 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 	tileAtSq := ern.axis.sq[ern.index].Tile
 	if tileAtSq != nil {
 		// There is a tile in the square: must match it exactly
-		if letter == tileAtSq.Letter {
+		if letter == tileAtSq.Meaning {
 			// Matches, from the board
 			return mBoardTile
 		}
