@@ -116,6 +116,18 @@ func NewOspsGame(boardType string) *Game {
 	return game
 }
 
+// NewNorwegianBokmålGame instantiates a new Game with the
+// Norwegian (Bokmål) TileSet and returns a reference to it
+func NewNorwegianBokmålGame(boardType string) *Game {
+	if NorwegianBokmålDictionary == nil {
+		// Unable to read Norwegian (Bokmål) DAWG
+		return nil
+	}
+	game := &Game{}
+	game.Init(boardType, NorwegianTileSet, NorwegianBokmålDictionary)
+	return game
+}
+
 // NewOtcwlGame instantiates a new Game with the
 // English ('standard' board type) or New English ('explo' board type)
 // TileSet, and returns a reference to it

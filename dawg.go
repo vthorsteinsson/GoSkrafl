@@ -50,6 +50,9 @@ const EnglishAlphabet = "abcdefghijklmnopqrstuvwxyz"
 // Polish alphabet
 const PolishAlphabet = "aąbcćdeęfghijklłmnńoóprsśtuwyzźż"
 
+// Norwegian alphabet
+const NorwegianAlphabet = "aäbcdefghijklmnoöpqrstuüvwxyzæøå"
+
 // Dawg encapsulates the externally generated,
 // compressed Directed Acyclic Word Graph as a byte buffer.
 // Within the DAWG, letters from the alphabet are represented
@@ -387,3 +390,7 @@ var SowpodsDictionary = makeDawg("sowpods.bin.dawg", EnglishAlphabet)
 // OspsDictionary is a Dawg instance containing the
 // word list used for Polish.
 var OspsDictionary = makeDawg("osps37.bin.dawg", PolishAlphabet)
+
+// NorwegianBokmålDictionary is a Dawg instance containing the
+// word list used for Norwegian (Bokmål).
+var NorwegianBokmålDictionary = makeDawg("nsf2023.bin.dawg", NorwegianAlphabet)

@@ -25,7 +25,7 @@ import (
 	"testing"
 )
 
-func TestDawg(t *testing.T) {
+func TestIcelandicDawg(t *testing.T) {
 	// Test finding words in the DAWG
 	wordBase := IcelandicDictionary
 	positiveCases := []string{
@@ -69,6 +69,67 @@ func TestDawg(t *testing.T) {
 	results = wordBase.Match("fa?gin?")
 	if !compareResults(results, []string{
 		"fagginn", "fanginn", "fangins", "fanginu", "farginu"}) {
+		t.Errorf("Match() returns incorrect result: %v", results)
+	}
+}
+
+func TestNorwegianDawg(t *testing.T) {
+	// Test finding words in the DAWG
+	wordBase := NorwegianBokmålDictionary
+	positiveCases := []string{
+		"god", "dag", "her", "er", "prøve", "ord", "ti", "do", "alene",
+		"gründer",
+	}
+	negativeCases := []string{
+		"blex", "fåser", "c", "abcd", "this",
+	}
+	for _, word := range positiveCases {
+		if !wordBase.Find(word) {
+			t.Errorf("Did not find word '%v' that should be in the DAWG", word)
+		}
+	}
+	for _, word := range negativeCases {
+		if wordBase.Find(word) {
+			t.Errorf("Found word '%v' that should not be in the DAWG", word)
+		}
+	}
+	compareResults := func(a, b []string) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i, s := range a {
+			if s != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+	// Test word permutations
+	results := wordBase.Permute("børnene", 6)
+	if !compareResults(results, []string{
+		"brenne", "brønne", "bønner", "børene", "enøren", "nørene", "øreben", "ørnene",
+	}) {
+		t.Errorf("Permute() returns incorrect result: %v", results)
+	}
+	results = wordBase.Permute("lei?der", RackSize)
+	if !compareResults(results, []string{
+		"blidere", "defiler", "deilder", "deleier", "deliren",
+		"delirer", "deliret", "depiler", "desiler", "diltere",
+		"dveiler", "elidere", "elidert", "firdele", "firedel",
+		"gildere", "glidere", "idealer", "idelære", "ilderen",
+		"ilderne", "ildeter", "ildrene", "leidere", "leirdue",
+		"leirdye", "leirede", "leivder", "lesider", "liender",
+		"lirende", "lirkede", "lydiere", "midlere", "mildere",
+		"nideler", "pilrede", "redelig", "redline", "riflede",
+		"rillede", "seidler", "sleider", "tideler", "tilrede",
+	}) {
+		t.Errorf("Permute() returns incorrect result: %v", results)
+	}
+	// Test pattern matching
+	results = wordBase.Match("mo?ile?")
+	if !compareResults(results, []string{
+		"mobilen", "mobiler",
+	}) {
 		t.Errorf("Match() returns incorrect result: %v", results)
 	}
 }
@@ -608,7 +669,7 @@ func TestRobot(t *testing.T) {
 			t.Errorf("Incorrect number of moves recorded")
 		}
 	}
-	// Cycle through 5 rounds of 2 (board types) x 4 (dictionaries)
+	// Cycle through 5 rounds of 2 (board types) x 5 (dictionaries)
 	// simulated games, each with its own board type, Dawg and alphabet
 	for cycle := 0; cycle < 5; cycle++ {
 		for _, boardType := range []string{"standard", "explo"} {
@@ -616,6 +677,7 @@ func TestRobot(t *testing.T) {
 			runTest(boardType, NewOtcwlGame)
 			runTest(boardType, NewSowpodsGame)
 			runTest(boardType, NewOspsGame)
+			runTest(boardType, NewNorwegianBokmålGame)
 		}
 	}
 }

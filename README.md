@@ -4,12 +4,12 @@ A concurrent crossword game engine and robot, written in Go
 ### About
 
 GoSkrafl is a **fast, concurrent** crossword game engine and **auto-playing robot**.
-It is a package for the Go programming language, licensed under GNU GPLv3.
+It is a package for the Go programming language, licensed under CC-BY-NC 4.0.
 It has been tested on Linux and Windows, and probably works fine on MacOS too.
 
 Out of the box, GoSkrafl supports **OTCWL2014**, **SOWPODS**, **OSPS37**,
-and **Icelandic** dictionaries and corresponding tile sets. But as it
-employs Unicode and UTF-8 throughout, GoSkrafl can easily be tweaked
+**Norwegian** and **Icelandic** dictionaries and corresponding tile sets.
+But as it employs Unicode and UTF-8 throughout, GoSkrafl can easily be tweaked
 to accommodate most natural languages and dictionaries, and any tile bag
 configuration. (The only limitation is that there cannot be more different
 letters in an alphabet than there are bits in the native **uint** type.)
@@ -32,13 +32,13 @@ by the same author.
 
 ### Status
 
-GoSkrafl is currently in Beta. Issues and pull requests are welcome.
+GoSkrafl is well tested and in production. Issues and pull requests are welcome.
 
 ### Adding new dictionaries
 
 To add support for a new dictionary, assemble the word list in a UTF-8 text file,
 with all words in lower case, one word per line. Use the
-[DAWG builder from Netskrafl](https://github.com/vthorsteinsson/Netskrafl/blob/singlepage/dawgbuilder.py)
+[DAWG builder from Netskrafl](https://github.com/vthorsteinsson/Netskrafl/blob/master/dawgbuilder.py)
 to build a `.bin.dawg` file.
 Copy it to the `/GoSkrafl/dicts/` directory, then add a snippet of
 code at the bottom of `dawg.go` to wrap it in an instance of the `Dawg` class. Remember to
@@ -102,7 +102,7 @@ conditions of the CC-BY-NC 4.0 license (see below).
 
 **GoSkrafl - a concurrent crossword game engine and robot, written in Go**
 
-*Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.*
+*Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.*
 
 This set of programs is licensed under the **Creative Commons
 Attribution-NonCommercial 4.0 International Public License (CC-BY-NC 4.0).**

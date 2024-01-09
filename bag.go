@@ -140,6 +140,35 @@ func initPolishTileSet() *TileSet {
 // PolishTileSet is the standard Polish tile set
 var PolishTileSet = initPolishTileSet()
 
+// initNorwegianTileSet creates the new Norwegian tile set
+// designed by Taral Guldahl Seierstad, used by permission.
+// Thanks Taral!
+func initNorwegianTileSet() *TileSet {
+
+	scores := map[rune]int{
+		'a': 1, 'b': 3, 'c': 8, 'd': 2, 'e': 1,
+		'f': 4, 'g': 2, 'h': 3, 'i': 1, 'j': 5,
+		'k': 2, 'l': 1, 'm': 2, 'n': 1, 'o': 2,
+		'p': 3, 'r': 1, 's': 1, 't': 1, 'u': 3,
+		'v': 3, 'w': 10, 'y': 3, 'æ': 6, 'ø': 4,
+		'å': 3, '?': 0,
+	}
+
+	tiles := map[rune]int{
+		'a': 11, 'b': 3, 'c': 1, 'd': 4, 'e': 12,
+		'f': 2, 'g': 3, 'h': 3, 'i': 5, 'j': 2,
+		'k': 4, 'l': 5, 'm': 2, 'n': 5, 'o': 4,
+		'p': 2, 'r': 6, 's': 4, 't': 5, 'u': 4,
+		'v': 3, 'w': 1, 'y': 2, 'æ': 1, 'ø': 2,
+		'å': 2, '?': 2,
+	}
+
+	return initTileSet(scores, tiles)
+}
+
+// NorwegianTileSet is the new Norwegian tile set
+var NorwegianTileSet = initNorwegianTileSet()
+
 // initEnglishTileSet creates the standard English tile set
 func initEnglishTileSet() *TileSet {
 

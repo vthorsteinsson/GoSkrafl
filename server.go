@@ -63,6 +63,12 @@ func decodeLocale(locale string, boardType string) (*Dawg, *TileSet) {
 	} else if locale == "pl" || locale3 == "pl_" || locale3 == "pl-" {
 		// Polish
 		dictionary = "osps"
+	} else if locale == "nb" || locale3 == "nb_" || locale3 == "nb-" {
+		// Norwegian (Bokmål)
+		dictionary = "nsf"
+	} else if locale == "no" || locale3 == "no_" || locale3 == "no-" {
+		// Generic Norwegian - we assume Bokmål
+		dictionary = "nsf"
 	} else {
 		// Default to U.S. English for other locales
 		dictionary = "otcwl"
@@ -92,6 +98,9 @@ func decodeLocale(locale string, boardType string) (*Dawg, *TileSet) {
 	case "osps":
 		dawg = OspsDictionary
 		tileSet = PolishTileSet
+	case "nsf":
+		dawg = NorwegianBokmålDictionary
+		tileSet = NorwegianTileSet
 	}
 
 	return dawg, tileSet
