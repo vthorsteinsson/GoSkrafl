@@ -38,7 +38,7 @@ GoSkrafl is well tested and in production. Issues and pull requests are welcome.
 
 To add support for a new dictionary, assemble the word list in a UTF-8 text file,
 with all words in lower case, one word per line. Use the
-[DAWG builder from Netskrafl](https://github.com/vthorsteinsson/Netskrafl/blob/master/dawgbuilder.py)
+[DAWG builder from Netskrafl](https://github.com/vthorsteinsson/Netskrafl/blob/master/src/dawgbuilder.py)
 to build a `.bin.dawg` file.
 Copy it to the `/GoSkrafl/dicts/` directory, then add a snippet of
 code at the bottom of `dawg.go` to wrap it in an instance of the `Dawg` class. Remember to
