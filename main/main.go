@@ -1,5 +1,5 @@
 // main.go
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // Example main program for exercising the skrafl module
 

@@ -1,5 +1,5 @@
 // navigators.go
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file contains the Navigator interface and declares
 // a couple of classes that implement it to provide various

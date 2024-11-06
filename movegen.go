@@ -1,5 +1,5 @@
 // movegen.go
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file contains code to generate all valid tile moves
 // on a board, given a player's rack.

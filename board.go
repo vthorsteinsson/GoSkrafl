@@ -1,5 +1,5 @@
 // board.go
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file implements Board, Square and Tile structs
 // and their associated operations

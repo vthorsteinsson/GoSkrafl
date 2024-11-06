@@ -1,5 +1,5 @@
 // game.go
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file implements the Game and GameState classes
 
@@ -125,6 +125,18 @@ func NewNorwegianBokmålGame(boardType string) *Game {
 	}
 	game := &Game{}
 	game.Init(boardType, NorwegianTileSet, NorwegianBokmålDictionary)
+	return game
+}
+
+// NewNorwegianNynorskGame instantiates a new Game with the
+// Norwegian (Nynorsk) TileSet and returns a reference to it
+func NewNorwegianNynorskGame(boardType string) *Game {
+	if NorwegianNynorskDictionary == nil {
+		// Unable to read Norwegian (Nynorsk) DAWG
+		return nil
+	}
+	game := &Game{}
+	game.Init(boardType, NorwegianTileSet, NorwegianNynorskDictionary)
 	return game
 }
 

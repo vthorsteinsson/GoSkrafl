@@ -1,6 +1,6 @@
 // server.go
 //
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 //
 // This file implements a compact HTTP server that receives
 // JSON encoded requests and returns JSON encoded responses.
@@ -66,6 +66,9 @@ func decodeLocale(locale string, boardType string) (*Dawg, *TileSet) {
 	} else if locale == "nb" || locale3 == "nb_" || locale3 == "nb-" {
 		// Norwegian (Bokmål)
 		dictionary = "nsf"
+	} else if locale == "nn" || locale3 == "nn_" || locale3 == "nn-" {
+		// Norwegian (Nynorsk)
+		dictionary = "nynorsk"
 	} else if locale == "no" || locale3 == "no_" || locale3 == "no-" {
 		// Generic Norwegian - we assume Bokmål
 		dictionary = "nsf"
@@ -101,6 +104,12 @@ func decodeLocale(locale string, boardType string) (*Dawg, *TileSet) {
 	case "nsf":
 		dawg = NorwegianBokmålDictionary
 		tileSet = NorwegianTileSet
+	case "nynorsk":
+		dawg = NorwegianNynorskDictionary
+		tileSet = NorwegianTileSet
+	default:
+		// Should not happen
+		panic(fmt.Sprintf("Unknown dictionary: %v", dictionary))
 	}
 
 	return dawg, tileSet

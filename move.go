@@ -1,5 +1,5 @@
 // move.go
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 // This file implements the Move interface and associated logic,
 // including the various types of moves and their validation.

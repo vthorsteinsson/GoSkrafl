@@ -1,6 +1,6 @@
 // dawg.go
 //
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf
 
 // This file implements the Directed Acyclic Word Graph (DAWG)
 // which encodes the dictionary of valid words.
@@ -394,3 +394,7 @@ var OspsDictionary = makeDawg("osps37.bin.dawg", PolishAlphabet)
 // NorwegianBokmålDictionary is a Dawg instance containing the
 // word list used for Norwegian (Bokmål).
 var NorwegianBokmålDictionary = makeDawg("nsf2023.bin.dawg", NorwegianAlphabet)
+
+// NorwegianNynorskDictionary is a Dawg instance containing the
+// word list used for Norwegian (Nynorsk).
+var NorwegianNynorskDictionary = makeDawg("nynorsk2024.bin.dawg", NorwegianAlphabet)

@@ -1,6 +1,6 @@
 // go-app/main.go
 // App Engine main package for GoSkrafl server
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 
 package main
 

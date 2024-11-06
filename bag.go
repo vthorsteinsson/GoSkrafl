@@ -1,6 +1,6 @@
 // bag.go
 //
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 //
 // This file contains the Bag and TileSet logic
 

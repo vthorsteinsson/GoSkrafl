@@ -1,5 +1,5 @@
 // skrafl_test.go
-// Copyright (C) 2023 Vilhjálmur Þorsteinsson / Miðeind ehf.
+// Copyright (C) 2024 Vilhjálmur Þorsteinsson / Miðeind ehf.
 // This file contains tests for the skrafl package
 
 /*
@@ -82,7 +82,7 @@ func TestNorwegianDawg(t *testing.T) {
 		"gründer",
 	}
 	negativeCases := []string{
-		"blex", "fåser", "c", "abcd", "this",
+		"blex", "fåser", "c", "abcd", "this", "korleis", "kvifor", "ikkje",
 	}
 	for _, word := range positiveCases {
 		if !wordBase.Find(word) {
@@ -130,6 +130,63 @@ func TestNorwegianDawg(t *testing.T) {
 	results = wordBase.Match("mo?ile?")
 	if !compareResults(results, []string{
 		"mobilen", "mobiler",
+	}) {
+		t.Errorf("Match() returns incorrect result: %v", results)
+	}
+}
+
+func TestNynorskDawg(t *testing.T) {
+	// Test finding words in the DAWG
+	wordBase := NorwegianNynorskDictionary
+	positiveCases := []string{
+		"god", "dag", "her", "er", "prøve", "ord", "ti", "do", "aleine",
+		"gründer", "ikkje", "berre", "først", "sist", "såleis", "korleis",
+		"kvifor",
+	}
+	negativeCases := []string{
+		// Include words that are in Bokmål but not in Nynorsk
+		"blex", "fåser", "c", "abcd", "this", "hvordan", "hvorfor",
+	}
+	for _, word := range positiveCases {
+		if !wordBase.Find(word) {
+			t.Errorf("Did not find word '%v' that should be in the DAWG", word)
+		}
+	}
+	for _, word := range negativeCases {
+		if wordBase.Find(word) {
+			t.Errorf("Found word '%v' that should not be in the DAWG", word)
+		}
+	}
+	compareResults := func(a, b []string) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i, s := range a {
+			if s != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+	// Test word permutations
+	results := wordBase.Permute("børnene", 6)
+	if !compareResults(results, []string{
+		"brenne", "bønene", "bønner", "børene", "ørnene",
+	}) {
+		t.Errorf("Permute() returns incorrect result: %v", results)
+	}
+	results = wordBase.Permute("lei?der", RackSize)
+	if !compareResults(results, []string{
+		"defiler", "deigler", "deilder", "delirer", "dreiela", "firedel",
+		"idelære", "ikleder", "ilderen", "leirdue", "leivder", "lesider",
+		"ordleie", "redline",
+	}) {
+		t.Errorf("Permute() returns incorrect result: %v", results)
+	}
+	// Test pattern matching
+	results = wordBase.Match("?ske?")
+	if !compareResults(results, []string{
+		"asken", "asket", "esker",
 	}) {
 		t.Errorf("Match() returns incorrect result: %v", results)
 	}
