@@ -19,8 +19,9 @@ main/main
 
 *.code-workspace
 
-# Binary executable
+# Binary executables
 GoSkrafl
+go-app/go-app
 
 # Environment variables
 go-app/env.yaml

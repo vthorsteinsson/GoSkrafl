@@ -21,7 +21,22 @@ var ACCESS_KEY string
 // Corresponding Authorization header (or "" if no auth required)
 var AUTH_HEADER string
 
+// Allowed access control (CORS) origins
+var ALLOWED_ORIGINS string = "*" // Default to all origins allowed
+
 func validate(w http.ResponseWriter, r *http.Request, req any) bool {
+	// Set CORS headers
+	header := w.Header()
+	header.Set("Access-Control-Allow-Origin", ALLOWED_ORIGINS)
+	header.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		// Returning false simply causes the handler to return the response headers
+		return false
+	}
+
 	// We only accept POST requests
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -92,6 +107,14 @@ func main() {
 		port = "8080"
 	}
 	log.Printf("Listening on port %s", port)
+	// Establish allowed CORS origins
+	origins := os.Getenv("ALLOWED_ORIGINS")
+	if origins != "" {
+		log.Printf("Allowed CORS origins: %s", origins)
+		ALLOWED_ORIGINS = origins
+	} else {
+		log.Printf("No ALLOWED_ORIGINS specified, allowing all")
+	}
 	// Start the server loop
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)

@@ -26,5 +26,6 @@
 *.sh
 
 GoSkrafl
+go-app
 *.code-workspace
 .vscode

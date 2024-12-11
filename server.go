@@ -230,7 +230,7 @@ func HandleMovesRequest(w http.ResponseWriter, req MovesRequest) {
 		movesWithScores = movesWithScores[0:min(req.Limit, len(movesWithScores))]
 	}
 
-	// Return the result as JSON
+	// Return the result as JSON, written to the http.ResponseWriter w
 	result := HeaderJson{
 		Version: "1.0",
 		Count:   len(movesWithScores),
