@@ -44,7 +44,7 @@ type HeaderJson struct {
 }
 
 // Map a requested locale string to a dictionary and tile set
-func decodeLocale(locale string, boardType string) (*Dawg, *TileSet) {
+func decodeLocale(locale string, boardType string) (*Dawg, *TileSet, error) {
 	// Obtain the first three characters of locale
 	locale3 := locale
 	if len(locale) > 3 {
@@ -109,10 +109,10 @@ func decodeLocale(locale string, boardType string) (*Dawg, *TileSet) {
 		tileSet = NorwegianTileSet
 	default:
 		// Should not happen
-		panic(fmt.Sprintf("Unknown dictionary: %v", dictionary))
+		return nil, nil, fmt.Errorf("unknown dictionary: %v", dictionary)
 	}
 
-	return dawg, tileSet
+	return dawg, tileSet, nil
 }
 
 // Handle an incoming /moves request
@@ -127,7 +127,11 @@ func HandleMovesRequest(w http.ResponseWriter, req MovesRequest) {
 
 	// Map the request's locale to a dawg and a tile set
 	locale := req.Locale
-	dawg, tileSet := decodeLocale(locale, boardType)
+	dawg, tileSet, err := decodeLocale(locale, boardType)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid locale '%s'", locale), http.StatusBadRequest)
+		return
+	}
 
 	rackRunes := []rune(req.Rack)
 	if len(rackRunes) == 0 || len(rackRunes) > RackSize {
@@ -266,7 +270,12 @@ func HandleWordCheckRequest(w http.ResponseWriter, req WordCheckRequest) {
 	}
 
 	// Obtain the correct DAWG for the given locale
-	dawg, _ := decodeLocale(req.Locale, "explo")
+	dawg, _, err := decodeLocale(req.Locale, "explo")
+	if err != nil {
+		// Return false response for invalid locale in word check
+		json.NewEncoder(w).Encode(OK_FALSE_RESPONSE)
+		return
+	}
 
 	// Check the words against the dictionary
 	allValid := true

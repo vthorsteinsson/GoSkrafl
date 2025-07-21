@@ -16,7 +16,7 @@ import (
 )
 
 // GameConstructor is a function that returns the type of Game we want
-type GameConstructor func(boardType string) *skrafl.Game
+type GameConstructor func(boardType string) (*skrafl.Game, error)
 
 // Generate a sequence of moves and responses
 func simulateGame(gameConstructor GameConstructor, boardType string,
@@ -30,7 +30,11 @@ func simulateGame(gameConstructor GameConstructor, boardType string,
 	} else {
 		p = func(format string, a ...interface{}) (int, error) { return 0, nil }
 	}
-	game := gameConstructor(boardType)
+	game, err := gameConstructor(boardType)
+	if err != nil {
+		p("Error creating game: %v\n", err)
+		return 0, 0
+	}
 	game.SetPlayerNames("Robot A", "Robot B")
 	p("%v\n", game)
 	for i := 0; ; i++ {

@@ -94,59 +94,54 @@ func (game *Game) Init(boardType string, tileSet *TileSet, dawg *Dawg) {
 
 // NewIcelandicGame instantiates a new Game with the Icelandic TileSet
 // and returns a reference to it
-func NewIcelandicGame(boardType string) *Game {
+func NewIcelandicGame(boardType string) (*Game, error) {
 	if IcelandicDictionary == nil {
-		// Unable to read Icelandic DAWG
-		return nil
+		return nil, fmt.Errorf("unable to read Icelandic DAWG dictionary")
 	}
 	game := &Game{}
 	game.Init(boardType, NewIcelandicTileSet, IcelandicDictionary)
-	return game
+	return game, nil
 }
 
 // NewOspsGame instantiates a new Game with the Polish TileSet
 // and returns a reference to it
-func NewOspsGame(boardType string) *Game {
+func NewOspsGame(boardType string) (*Game, error) {
 	if OspsDictionary == nil {
-		// Unable to read Polish (OSPS37) DAWG
-		return nil
+		return nil, fmt.Errorf("unable to read Polish (OSPS37) DAWG dictionary")
 	}
 	game := &Game{}
 	game.Init(boardType, PolishTileSet, OspsDictionary)
-	return game
+	return game, nil
 }
 
 // NewNorwegianBokmålGame instantiates a new Game with the
 // Norwegian (Bokmål) TileSet and returns a reference to it
-func NewNorwegianBokmålGame(boardType string) *Game {
+func NewNorwegianBokmålGame(boardType string) (*Game, error) {
 	if NorwegianBokmålDictionary == nil {
-		// Unable to read Norwegian (Bokmål) DAWG
-		return nil
+		return nil, fmt.Errorf("unable to read Norwegian (Bokmål) DAWG dictionary")
 	}
 	game := &Game{}
 	game.Init(boardType, NorwegianTileSet, NorwegianBokmålDictionary)
-	return game
+	return game, nil
 }
 
 // NewNorwegianNynorskGame instantiates a new Game with the
 // Norwegian (Nynorsk) TileSet and returns a reference to it
-func NewNorwegianNynorskGame(boardType string) *Game {
+func NewNorwegianNynorskGame(boardType string) (*Game, error) {
 	if NorwegianNynorskDictionary == nil {
-		// Unable to read Norwegian (Nynorsk) DAWG
-		return nil
+		return nil, fmt.Errorf("unable to read Norwegian (Nynorsk) DAWG dictionary")
 	}
 	game := &Game{}
 	game.Init(boardType, NorwegianTileSet, NorwegianNynorskDictionary)
-	return game
+	return game, nil
 }
 
 // NewOtcwlGame instantiates a new Game with the
 // English ('standard' board type) or New English ('explo' board type)
 // TileSet, and returns a reference to it
-func NewOtcwlGame(boardType string) *Game {
+func NewOtcwlGame(boardType string) (*Game, error) {
 	if OtcwlDictionary == nil {
-		// Unable to read OTCWL2014 DAWG
-		return nil
+		return nil, fmt.Errorf("unable to read OTCWL2014 DAWG dictionary")
 	}
 	game := &Game{}
 	var tileSet *TileSet
@@ -156,16 +151,15 @@ func NewOtcwlGame(boardType string) *Game {
 		tileSet = EnglishTileSet
 	}
 	game.Init(boardType, tileSet, OtcwlDictionary)
-	return game
+	return game, nil
 }
 
 // NewSowpodsGame instantiates a new Game with the
 // English ('standard' board type) or New English ('explo' board type)
 // TileSet, and returns a reference to it
-func NewSowpodsGame(boardType string) *Game {
+func NewSowpodsGame(boardType string) (*Game, error) {
 	if SowpodsDictionary == nil {
-		// Unable to read SOWPODS DAWG
-		return nil
+		return nil, fmt.Errorf("unable to read SOWPODS DAWG dictionary")
 	}
 	game := &Game{}
 	var tileSet *TileSet
@@ -175,7 +169,7 @@ func NewSowpodsGame(boardType string) *Game {
 		tileSet = EnglishTileSet
 	}
 	game.Init(boardType, tileSet, SowpodsDictionary)
-	return game
+	return game, nil
 }
 
 func NewState(dawg *Dawg, tileSet *TileSet, board *Board, rack *Rack, exchangeForbidden bool) *GameState {

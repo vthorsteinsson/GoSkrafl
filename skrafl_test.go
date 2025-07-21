@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package skrafl
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -230,9 +231,9 @@ func BenchmarkDawg(b *testing.B) {
 }
 
 func TestTileMove(t *testing.T) {
-	game := NewIcelandicGame("standard")
-	if game == nil {
-		t.Errorf("Unable to create a new Icelandic game")
+	game, err := NewIcelandicGame("standard")
+	if err != nil {
+		t.Errorf("Unable to create a new Icelandic game: %v", err)
 		return
 	}
 	// For testing, disable word validation for tile moves
@@ -449,9 +450,9 @@ func TestTileMove(t *testing.T) {
 }
 
 func TestStartSquare(t *testing.T) {
-	game := NewIcelandicGame("explo")
-	if game == nil {
-		t.Errorf("Unable to create a new Icelandic game")
+	game, err := NewIcelandicGame("explo")
+	if err != nil {
+		t.Errorf("Unable to create a new Icelandic game: %v", err)
 		return
 	}
 	// For testing, disable word validation for tile moves
@@ -481,9 +482,9 @@ func TestStartSquare(t *testing.T) {
 }
 
 func TestWordCheck(t *testing.T) {
-	game := NewIcelandicGame("standard")
-	if game == nil {
-		t.Errorf("Unable to create a new Icelandic game")
+	game, err := NewIcelandicGame("standard")
+	if err != nil {
+		t.Errorf("Unable to create a new Icelandic game: %v", err)
 		return
 	}
 	if !game.ValidateWords {
@@ -517,9 +518,9 @@ func TestWordCheck(t *testing.T) {
 
 func TestFindLeftParts(t *testing.T) {
 	// Find left parts
-	game := NewIcelandicGame("standard")
-	if game == nil {
-		t.Errorf("Unable to create a new Icelandic game")
+	game, err := NewIcelandicGame("standard")
+	if err != nil {
+		t.Errorf("Unable to create a new Icelandic game: %v", err)
 		return
 	}
 	rack := game.Racks[game.PlayerToMove()].AsRunes()
@@ -628,9 +629,10 @@ func TestStringify(t *testing.T) {
 	// Stringify the game (no test but at least this enhances coverage)
 	var game *Game
 	for i := 0; ; i++ {
-		game = NewIcelandicGame("standard")
-		if game == nil {
-			t.Errorf("Unable to create a new Icelandic game")
+		var err error
+		game, err = NewIcelandicGame("standard")
+		if err != nil {
+			t.Errorf("Unable to create a new Icelandic game: %v", err)
 			return
 		}
 		// Forcing a rack may fail because some of the unique tiles may
@@ -668,7 +670,11 @@ func BenchmarkRobot(b *testing.B) {
 
 	// Generate a sequence of moves and responses
 	simulateGame := func(robot *RobotWrapper) {
-		game := NewIcelandicGame("standard")
+		game, err := NewIcelandicGame("standard")
+		if err != nil {
+			// Can't use t.Errorf here since t is not in scope in this closure
+			panic(fmt.Sprintf("Unable to create a new Icelandic game: %v", err))
+		}
 		game.SetPlayerNames("Villi", "Gopher")
 		for {
 			state := game.State()
@@ -687,14 +693,15 @@ func BenchmarkRobot(b *testing.B) {
 }
 
 func TestRobot(t *testing.T) {
-	runTest := func(boardType string, ctor func(boardType string) *Game) {
+	runTest := func(boardType string, ctor func(boardType string) (*Game, error)) {
 		robot := NewHighScoreRobot()
 		if robot == nil {
 			t.Errorf("Unable to create HighScoreRobot")
 		}
-		game := ctor(boardType)
-		if game == nil {
-			t.Errorf("Unable to create a new game for board type '%s'", boardType)
+		game, err := ctor(boardType)
+		if err != nil {
+			t.Errorf("Unable to create a new game for board type '%s': %v", boardType, err)
+			return
 		}
 		game.SetPlayerNames("Villi", "Gopher")
 		// Go through an entire game
