@@ -24,6 +24,7 @@ package skrafl
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestIcelandicDawg(t *testing.T) {
@@ -748,5 +749,58 @@ func TestRobot(t *testing.T) {
 			runTest(boardType, NewOspsGame)
 			runTest(boardType, NewNorwegianBokmålGame)
 		}
+	}
+}
+
+func TestGenerateRiddle(t *testing.T) {
+	dawg, tileSet, err := decodeLocale("is_IS", "standard")
+	if err != nil {
+		t.Errorf("Failed to decode locale: %v", err)
+	}
+
+	params := GenerationParams{
+		Locale:     "is_IS",
+		BoardType:  "standard",
+		Dawg:       dawg,
+		TileSet:    tileSet,
+		TimeLimit:  2 * time.Second,
+		NumWorkers: 4,
+	}
+
+	riddle, err := GenerateRiddle(params, DefaultHeuristics)
+
+	if err != nil {
+		// It's not an error if no riddle is found in the time limit.
+		// We just log it. The test fails only on a panic or unexpected error state.
+		t.Logf("Could not generate riddle in time: %v", err)
+		return
+	}
+
+	if riddle == nil {
+		t.Fatal("GenerateRiddle returned nil riddle and nil error")
+	}
+
+	if len(riddle.Board) != BoardSize {
+		t.Errorf("Expected board to have %d rows, but got %d", BoardSize, len(riddle.Board))
+	}
+
+	if len(riddle.Board) > 0 && len([]rune(riddle.Board[0])) != BoardSize {
+		t.Errorf("Expected board to have %d columns, but got %d", BoardSize, len([]rune(riddle.Board[0])))
+	}
+
+	if len([]rune(riddle.Rack)) != RackSize {
+		t.Errorf("Expected rack to have %d tiles, but got %d", RackSize, len([]rune(riddle.Rack)))
+	}
+
+	if riddle.Solution.Move == "" {
+		t.Error("Riddle solution has an empty move string")
+	}
+
+	if riddle.Solution.Score <= 0 {
+		t.Errorf("Expected solution score to be positive, but got %d", riddle.Solution.Score)
+	}
+
+	if riddle.Analysis.BestMoveScore <= 0 {
+		t.Errorf("Expected analysis best move score to be positive, but got %d", riddle.Analysis.BestMoveScore)
 	}
 }

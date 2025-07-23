@@ -176,7 +176,9 @@ func NewRack(r []rune, tileSet *TileSet) *Rack {
 	return rack
 }
 
-// String returns a printable string representation of a Rack
+// String returns a printable string representation of a Rack.
+// Note that for further processing, as opposed to display,
+// the AsRunes() or AsString() methods should be used.
 func (rack *Rack) String() string {
 	var sb strings.Builder
 	for _, sq := range rack.Slots {

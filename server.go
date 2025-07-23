@@ -11,7 +11,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"sort"
+	"time"
 	"unicode"
 )
 
@@ -22,6 +24,14 @@ type MovesRequest struct {
 	Board     []string `json:"board"`
 	Rack      string   `json:"rack"`
 	Limit     int      `json:"limit"`
+}
+
+// A class describing incoming /riddle requests
+type RiddleRequest struct {
+	Locale           string `json:"locale"`
+	BoardType        string `json:"boardType"`
+	TimeLimitSeconds int    `json:"timeLimitSeconds"`
+	NumWorkers       int    `json:"numWorkers"`
 }
 
 // A kludge to be able to marshal a Move with its score
@@ -246,6 +256,62 @@ func HandleMovesRequest(w http.ResponseWriter, req MovesRequest) {
 	}
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		// Unable to generate valid JSON
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// Handle an incoming /riddle request
+func HandleGenerateRiddle(w http.ResponseWriter, req RiddleRequest) {
+	if req.Locale == "" {
+		http.Error(w, "Locale must be specified", http.StatusBadRequest)
+		return
+	}
+
+	boardType := req.BoardType
+	if boardType == "" {
+		boardType = "standard"
+	} else if boardType != "standard" && boardType != "explo" {
+		http.Error(w, "Invalid board type. Must be 'standard' or 'explo'", http.StatusBadRequest)
+		return
+	}
+
+	timeLimit := time.Duration(req.TimeLimitSeconds) * time.Second
+	if timeLimit <= 0 {
+		timeLimit = 5 * time.Second // Default to 5 seconds if not specified
+	}
+	numWorkers := req.NumWorkers
+	if numWorkers <= 0 {
+		numWorkers = runtime.NumCPU() // Scale based on available cores
+	}
+
+	dawg, tileSet, err := decodeLocale(req.Locale, boardType)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	params := GenerationParams{
+		Locale:     req.Locale,
+		BoardType:  boardType,
+		Dawg:       dawg,
+		TileSet:    tileSet,
+		TimeLimit:  timeLimit,
+		NumWorkers: numWorkers,
+	}
+
+	// Select the appropriate heuristics for the locale.
+	heuristics := DefaultHeuristics
+	if params.Locale == "is" || params.Locale == "is_IS" {
+		heuristics = IcelandicHeuristics
+	}
+
+	riddle, err := GenerateRiddle(params, heuristics)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(riddle); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

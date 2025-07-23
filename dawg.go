@@ -404,3 +404,6 @@ var NorwegianBokmålDictionary = makeDawg("nsf2023.bin.dawg", NorwegianAlphabet)
 // NorwegianNynorskDictionary is a Dawg instance containing the
 // word list used for Norwegian (Nynorsk).
 var NorwegianNynorskDictionary = makeDawg("nynorsk2024.bin.dawg", NorwegianAlphabet)
+
+// IcelandicCommonWordsDictionary contains a list of common Icelandic words, used for filtering.
+var IcelandicCommonWordsDictionary = makeDawg("amlodi.bin.dawg", IcelandicAlphabet)

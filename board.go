@@ -26,6 +26,7 @@ package skrafl
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 const zero = int('0')
@@ -184,6 +185,14 @@ func (tile *Tile) String() string {
 		return "."
 	}
 	return string(tile.Letter)
+}
+
+// Coord converts row, col, across to "A1"/"1A" format.
+func Coord(row, col int, horizontal bool) string {
+	if horizontal {
+		return fmt.Sprintf("%c%d", 'A'+row, col+1)
+	}
+	return fmt.Sprintf("%d%c", row+1, 'A'+col)
 }
 
 // Return the coordinate of the start square for this board type
@@ -424,4 +433,26 @@ func NewBoard(boardType string) (*Board, error) {
 		return nil, err
 	}
 	return board, nil
+}
+
+// BoardToStrings converts a Board object to a compact slice of strings,
+// where blank tile meanings are represented by uppercase letters.
+func BoardToStrings(b *Board) []string {
+	s := make([]string, BoardSize)
+	for r := 0; r < BoardSize; r++ {
+		var sb strings.Builder
+		for c := 0; c < BoardSize; c++ {
+			sq := b.Sq(r, c)
+			if sq.Tile == nil {
+				sb.WriteRune('.')
+			} else if sq.Tile.Letter == '?' {
+				// Blank tile on board is represented by its meaning, uppercase
+				sb.WriteRune(unicode.ToUpper(sq.Tile.Meaning))
+			} else {
+				sb.WriteRune(sq.Tile.Letter)
+			}
+		}
+		s[r] = sb.String()
+	}
+	return s
 }

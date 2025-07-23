@@ -20,6 +20,9 @@ handlers:
 - url: /wordcheck
   script: auto
   secure: always
+- url: /riddle
+  script: auto
+  secure: always
 - url: /_ah/warmup
   script: auto
   secure: always

@@ -340,7 +340,7 @@ func (move *TileMove) IsValid(game *Game) bool {
 
 func (move *TileMove) CleanWord() string {
 	// Return move.Word after deleting question marks from the string
-	return strings.Replace(move.Word, "?", "", -1)
+	return strings.ReplaceAll(move.Word, "?", "")
 }
 
 func (move *TileMove) ValidateWord(dawg *Dawg) bool {

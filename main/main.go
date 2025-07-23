@@ -85,9 +85,24 @@ func wordcheckHandler(w http.ResponseWriter, r *http.Request) {
 	skrafl.HandleWordCheckRequest(w, req)
 }
 
+func riddleHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	var req skrafl.RiddleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Not valid JSON
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	skrafl.HandleGenerateRiddle(w, req)
+}
+
 func runServer() {
 	http.HandleFunc("/moves", movesHandler)
 	http.HandleFunc("/wordcheck", wordcheckHandler)
+	http.HandleFunc("/riddle", riddleHandler)
 	http.ListenAndServe(":8080", nil)
 }
 

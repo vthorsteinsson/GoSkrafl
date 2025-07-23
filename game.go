@@ -469,3 +469,29 @@ func (game *Game) String() string {
 	}
 	return sb.String()
 }
+
+// NewGameForLocale is a helper to create a game for a given locale.
+func NewGameForLocale(locale, boardType string) (*Game, error) {
+	// This logic is simplified. A more robust implementation might use a map.
+	locale3 := locale
+	if len(locale) > 3 {
+		locale3 = locale[0:3]
+	}
+	if locale == "" || locale == "en_US" || locale == "en-US" {
+		return NewOtcwlGame(boardType)
+	} else if locale == "en" || locale3 == "en_" || locale3 == "en-" {
+		return NewSowpodsGame(boardType)
+	} else if locale == "is" || locale3 == "is_" || locale3 == "is-" {
+		return NewIcelandicGame(boardType)
+	} else if locale == "pl" || locale3 == "pl_" || locale3 == "pl-" {
+		return NewOspsGame(boardType)
+	} else if locale == "nb" || locale3 == "nb_" || locale3 == "nb-" {
+		return NewNorwegianBokmålGame(boardType)
+	} else if locale == "nn" || locale3 == "nn_" || locale3 == "nn-" {
+		return NewNorwegianNynorskGame(boardType)
+	} else if locale == "no" || locale3 == "no_" || locale3 == "no-" {
+		return NewNorwegianBokmålGame(boardType)
+	}
+	// Default to U.S. English for other locales
+	return NewOtcwlGame(boardType)
+}
