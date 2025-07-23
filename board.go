@@ -369,18 +369,19 @@ func (board *Board) CrossWords(row, col int, horizontal bool) (left, right []run
 }
 
 // Init initializes an empty board
-func (board *Board) Init(boardType string) {
+func (board *Board) Init(boardType string) error {
 	// Select the correct multipliers for the board type
 	var letterMultipliers *[BoardSize]string
 	var wordMultipliers *[BoardSize]string
-	if boardType == "standard" {
+	switch boardType {
+	case "standard":
 		letterMultipliers = &LETTER_MULTIPLIERS_STANDARD
 		wordMultipliers = &WORD_MULTIPLIERS_STANDARD
-	} else if boardType == "explo" {
+	case "explo":
 		letterMultipliers = &LETTER_MULTIPLIERS_EXPLO
 		wordMultipliers = &WORD_MULTIPLIERS_EXPLO
-	} else {
-		panic(fmt.Sprintf("Unknown board type: %s", boardType))
+	default:
+		return fmt.Errorf("unknown board type: '%s'", boardType)
 	}
 	board.Type = boardType
 	for i := 0; i < BoardSize; i++ {
@@ -414,10 +415,13 @@ func (board *Board) Init(boardType string) {
 			}
 		}
 	}
+	return nil
 }
 
-func NewBoard(boardType string) *Board {
+func NewBoard(boardType string) (*Board, error) {
 	board := &Board{}
-	board.Init(boardType)
-	return board
+	if err := board.Init(boardType); err != nil {
+		return nil, err
+	}
+	return board, nil
 }

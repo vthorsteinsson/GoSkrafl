@@ -558,7 +558,11 @@ func TestAxis(t *testing.T) {
 	}
 
 	// Test the move generation on a single Axis instance
-	board := NewBoard("explo")
+	board, err := NewBoard("explo")
+	if err != nil {
+		t.Errorf("Unexpected error when creating a new Board: %v", err)
+		return
+	}
 	for _, tp := range []TilePlacement{
 		{3, 3, &Tile{'d', 'd', 3, 0}},
 		{3, 4, &Tile{'o', 'o', 4, 0}},

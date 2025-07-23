@@ -146,7 +146,11 @@ func HandleMovesRequest(w http.ResponseWriter, req MovesRequest) {
 		return
 	}
 
-	board := NewBoard(boardType)
+	board, err := NewBoard(boardType)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Unsupported board type: %v", boardType), http.StatusBadRequest)
+		return
+	}
 	for r, rowString := range req.Board {
 		row := []rune(rowString)
 		if len(row) != BoardSize {
@@ -255,7 +259,7 @@ type WordCheckRequest struct {
 	Words  []string `json:"words"`
 }
 
-type WordCheckResultPair [2]interface{}
+type WordCheckResultPair [2]any
 
 // Handle a /wordcheck request
 func HandleWordCheckRequest(w http.ResponseWriter, req WordCheckRequest) {
@@ -294,7 +298,7 @@ func HandleWordCheckRequest(w http.ResponseWriter, req WordCheckRequest) {
 		}
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"word":  req.Word, // Presently not used
 		"ok":    allValid,
 		"valid": valid,

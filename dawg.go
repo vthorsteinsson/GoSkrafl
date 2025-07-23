@@ -27,6 +27,7 @@ package skrafl
 import (
 	"embed"
 	"encoding/binary"
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -95,6 +96,7 @@ type Alphabet struct {
 	asRunes  []rune
 	bitMap   BitMap
 	allSet   uint
+	length   int
 }
 
 // A Prefix is an array of runes that prefixes an outgoing
@@ -103,22 +105,24 @@ type Prefix []rune
 
 // Init initializes an Alphabet, including a precalculated
 // bit map for its runes
-func (a *Alphabet) Init(alphabet string) {
+func (a *Alphabet) Init(alphabet string) error {
 	a.asString = alphabet
 	a.asRunes = []rune(alphabet)
 	a.bitMap = make(BitMap)
 	a.allSet = uint(0)
+	a.length = len(a.asRunes)
 	last := uint(0)
 	for i, r := range a.asRunes {
 		bit := uint(1 << uint(i))
 		if bit < last {
 			// Bit overflow, too many runes to be stored in uint
-			panic("Alphabet cannot have more runes than the number of bits in uint")
+			return fmt.Errorf("alphabet cannot have more runes than the number of bits in uint")
 		}
 		a.bitMap[r] = bit
 		a.allSet |= bit
 		last = bit
 	}
+	return nil
 }
 
 // MakeSet converts a list of runes to a bit map,
@@ -146,7 +150,7 @@ func (a *Alphabet) Member(r rune, set uint) bool {
 
 // Length returns the number of runes in the Alphabet
 func (a *Alphabet) Length() int {
-	return len(a.asRunes)
+	return a.length
 }
 
 // navState holds a navigation state, i.e. an edge where a prefix
@@ -218,17 +222,19 @@ func (dawg *Dawg) Init(fs embed.FS, fileName string, alphabet string) error {
 	if err != nil {
 		return err
 	}
+	if err := dawg.alphabet.Init(alphabet); err != nil {
+		return err
+	}
 	dawg.b = data
 	// Create the alphabet decoding map
 	dawg.coding = make(Coding)
-	i := byte(0)
-	dawg.alphabet.Init(alphabet)
 	// For each rune in the alphabet, create a coding
 	// entry that maps a byte index to a slice containing
 	// just that rune - and also a coding entry that maps
 	// that byte index with the high bit set (| 0x80) to
 	// a slice containing that rune plus '|'. The vertical
 	// bar is a finality marker within a prefix sequence.
+	i := byte(0)
 	for _, chr := range alphabet {
 		dawg.coding[i] = make(Prefix, 1)
 		dawg.coding[i][0] = chr
@@ -310,8 +316,8 @@ func (dawg *Dawg) MatchRunes(pattern []rune) []string {
 func (dawg *Dawg) CrossSet(left, right []rune) uint {
 	lenLeft := len(left)
 	key := string(left) + "?" + string(right)
+	alphabetLength := dawg.alphabet.Length()
 	fetchFunc := func(key string) uint {
-		alphabetLength := dawg.alphabet.Length()
 		// We ask the DAWG to find all words consisting of the
 		// left cross word + wildcard + right cross word,
 		// for instance 'f?lt' if the left word is 'f' and the

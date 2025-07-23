@@ -32,6 +32,8 @@ import (
 	"strings"
 )
 
+const FINAL_BIT = 0x80
+
 // Navigator is an interface that describes behaviors that control the
 // navigation of a Dawg
 type Navigator interface {
@@ -112,7 +114,7 @@ func (nav *Navigation) FromEdge(state *navState, alreadyMatched []rune) {
 			// The prefix is complete: if there is no next node, or if
 			// the next node is marked with a final bit, we're at a
 			// complete word boundary
-			if state.nextNode == 0 || nav.dawg.b[state.nextNode]&0x80 != 0 {
+			if state.nextNode == 0 || nav.dawg.b[state.nextNode]&FINAL_BIT != 0 {
 				final = true
 			}
 		}

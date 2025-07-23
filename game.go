@@ -77,8 +77,10 @@ type MoveItem struct {
 // Init initializes a new game with a fresh bag copied
 // from the given tile set, and draws the player racks
 // from the bag
-func (game *Game) Init(boardType string, tileSet *TileSet, dawg *Dawg) {
-	game.Board.Init(boardType)
+func (game *Game) Init(boardType string, tileSet *TileSet, dawg *Dawg) error {
+	if err := game.Board.Init(boardType); err != nil {
+		return fmt.Errorf("unknown board type: '%s'", boardType)
+	}
 	game.Racks[0].Init()
 	game.Racks[1].Init()
 	game.TileSet = tileSet
@@ -90,6 +92,7 @@ func (game *Game) Init(boardType string, tileSet *TileSet, dawg *Dawg) {
 	game.Dawg = dawg
 	// By default, we validate words formed by tile moves
 	game.ValidateWords = true
+	return nil
 }
 
 // NewIcelandicGame instantiates a new Game with the Icelandic TileSet
@@ -99,7 +102,9 @@ func NewIcelandicGame(boardType string) (*Game, error) {
 		return nil, fmt.Errorf("unable to read Icelandic DAWG dictionary")
 	}
 	game := &Game{}
-	game.Init(boardType, NewIcelandicTileSet, IcelandicDictionary)
+	if err := game.Init(boardType, NewIcelandicTileSet, IcelandicDictionary); err != nil {
+		return nil, err
+	}
 	return game, nil
 }
 
@@ -110,7 +115,9 @@ func NewOspsGame(boardType string) (*Game, error) {
 		return nil, fmt.Errorf("unable to read Polish (OSPS37) DAWG dictionary")
 	}
 	game := &Game{}
-	game.Init(boardType, PolishTileSet, OspsDictionary)
+	if err := game.Init(boardType, PolishTileSet, OspsDictionary); err != nil {
+		return nil, err
+	}
 	return game, nil
 }
 
@@ -121,7 +128,9 @@ func NewNorwegianBokmålGame(boardType string) (*Game, error) {
 		return nil, fmt.Errorf("unable to read Norwegian (Bokmål) DAWG dictionary")
 	}
 	game := &Game{}
-	game.Init(boardType, NorwegianTileSet, NorwegianBokmålDictionary)
+	if err := game.Init(boardType, NorwegianTileSet, NorwegianBokmålDictionary); err != nil {
+		return nil, err
+	}
 	return game, nil
 }
 
@@ -132,7 +141,9 @@ func NewNorwegianNynorskGame(boardType string) (*Game, error) {
 		return nil, fmt.Errorf("unable to read Norwegian (Nynorsk) DAWG dictionary")
 	}
 	game := &Game{}
-	game.Init(boardType, NorwegianTileSet, NorwegianNynorskDictionary)
+	if err := game.Init(boardType, NorwegianTileSet, NorwegianNynorskDictionary); err != nil {
+		return nil, err
+	}
 	return game, nil
 }
 
@@ -150,7 +161,9 @@ func NewOtcwlGame(boardType string) (*Game, error) {
 	} else {
 		tileSet = EnglishTileSet
 	}
-	game.Init(boardType, tileSet, OtcwlDictionary)
+	if err := game.Init(boardType, tileSet, OtcwlDictionary); err != nil {
+		return nil, err
+	}
 	return game, nil
 }
 
@@ -168,7 +181,9 @@ func NewSowpodsGame(boardType string) (*Game, error) {
 	} else {
 		tileSet = EnglishTileSet
 	}
-	game.Init(boardType, tileSet, SowpodsDictionary)
+	if err := game.Init(boardType, tileSet, SowpodsDictionary); err != nil {
+		return nil, err
+	}
 	return game, nil
 }
 
