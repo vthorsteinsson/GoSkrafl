@@ -435,9 +435,9 @@ func NewBoard(boardType string) (*Board, error) {
 	return board, nil
 }
 
-// BoardToStrings converts a Board object to a compact slice of strings,
+// ToStrings converts a Board object to a compact slice of strings,
 // where blank tile meanings are represented by uppercase letters.
-func BoardToStrings(b *Board) []string {
+func (b *Board) ToStrings() []string {
 	s := make([]string, BoardSize)
 	for r := 0; r < BoardSize; r++ {
 		var sb strings.Builder

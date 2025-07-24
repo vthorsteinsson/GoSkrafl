@@ -23,6 +23,8 @@ package skrafl
 
 import (
 	"fmt"
+	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -739,15 +741,30 @@ func TestRobot(t *testing.T) {
 			t.Errorf("Incorrect number of moves recorded")
 		}
 	}
-	// Cycle through 5 rounds of 2 (board types) x 5 (dictionaries)
+
+	var tests = []func(string) (*Game, error){
+		NewIcelandicGame,
+		NewOtcwlGame,
+		NewSowpodsGame,
+		NewOspsGame,
+		NewNorwegianBokmålGame,
+		NewNorwegianNynorskGame,
+	}
+	var numTests = len(tests)
+
+	// Cycle through 5 rounds of 2 (board types) x 6 (dictionaries)
 	// simulated games, each with its own board type, Dawg and alphabet
 	for cycle := 0; cycle < 5; cycle++ {
 		for _, boardType := range []string{"standard", "explo"} {
-			runTest(boardType, NewIcelandicGame)
-			runTest(boardType, NewOtcwlGame)
-			runTest(boardType, NewSowpodsGame)
-			runTest(boardType, NewOspsGame)
-			runTest(boardType, NewNorwegianBokmålGame)
+			var wg sync.WaitGroup
+			wg.Add(numTests)
+			for _, test := range tests {
+				go func(test func(string) (*Game, error)) {
+					defer wg.Done()
+					runTest(boardType, test)
+				}(test)
+			}
+			wg.Wait()
 		}
 	}
 }
@@ -803,4 +820,13 @@ func TestGenerateRiddle(t *testing.T) {
 	if riddle.Analysis.BestMoveScore <= 0 {
 		t.Errorf("Expected analysis best move score to be positive, but got %d", riddle.Analysis.BestMoveScore)
 	}
+}
+
+func TestMain(m *testing.M) {
+	// Set a global test flag
+	os.Setenv("TEST_MODE", "true")
+	// Run all tests
+	code := m.Run()
+	// Exit with the same code as the tests
+	os.Exit(code)
 }

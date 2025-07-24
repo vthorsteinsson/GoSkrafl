@@ -96,7 +96,6 @@ type Alphabet struct {
 	asRunes  []rune
 	bitMap   BitMap
 	allSet   uint
-	length   int
 }
 
 // A Prefix is an array of runes that prefixes an outgoing
@@ -110,7 +109,6 @@ func (a *Alphabet) Init(alphabet string) error {
 	a.asRunes = []rune(alphabet)
 	a.bitMap = make(BitMap)
 	a.allSet = uint(0)
-	a.length = len(a.asRunes)
 	last := uint(0)
 	for i, r := range a.asRunes {
 		bit := uint(1 << uint(i))
@@ -150,7 +148,7 @@ func (a *Alphabet) Member(r rune, set uint) bool {
 
 // Length returns the number of runes in the Alphabet
 func (a *Alphabet) Length() int {
-	return a.length
+	return len(a.asRunes)
 }
 
 // navState holds a navigation state, i.e. an edge where a prefix
@@ -222,12 +220,13 @@ func (dawg *Dawg) Init(fs embed.FS, fileName string, alphabet string) error {
 	if err != nil {
 		return err
 	}
-	if err := dawg.alphabet.Init(alphabet); err != nil {
-		return err
-	}
 	dawg.b = data
 	// Create the alphabet decoding map
 	dawg.coding = make(Coding)
+	// ...and initialize the alphabet
+	if err := dawg.alphabet.Init(alphabet); err != nil {
+		return err
+	}
 	// For each rune in the alphabet, create a coding
 	// entry that maps a byte index to a slice containing
 	// just that rune - and also a coding entry that maps
@@ -316,7 +315,6 @@ func (dawg *Dawg) MatchRunes(pattern []rune) []string {
 func (dawg *Dawg) CrossSet(left, right []rune) uint {
 	lenLeft := len(left)
 	key := string(left) + "?" + string(right)
-	alphabetLength := dawg.alphabet.Length()
 	fetchFunc := func(key string) uint {
 		// We ask the DAWG to find all words consisting of the
 		// left cross word + wildcard + right cross word,
@@ -328,6 +326,7 @@ func (dawg *Dawg) CrossSet(left, right []rune) uint {
 		matches := dawg.Match(key)
 		// Collect the 'middle' letters (the ones standing in
 		// for the wildcard)
+		alphabetLength := dawg.alphabet.Length()
 		runes := make([]rune, 0, alphabetLength)
 		for _, match := range matches {
 			rMatch := []rune(match)

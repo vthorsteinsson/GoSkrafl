@@ -146,12 +146,9 @@ func generateCandidate(ctx context.Context, params GenerationParams, heuristics 
 	}
 
 	// The current state is our candidate.
-	board := game.Board
-	rack := game.Racks[game.PlayerToMove()]
-
-	// The exchangeForbidden parameter is true,
-	// since we're not interested in exchange moves anyway
-	state := NewState(params.Dawg, params.TileSet, &board, &rack, true)
+	state := game.State()
+	board := state.Board
+	rack := state.Rack.AsString()
 	moves := state.GenerateMoves()
 
 	// Score and sort the moves.
@@ -214,8 +211,8 @@ func generateCandidate(ctx context.Context, params GenerationParams, heuristics 
 	}
 
 	riddle := &Riddle{
-		Board:    BoardToStrings(&board),
-		Rack:     rack.AsString(),
+		Board:    board.ToStrings(),
+		Rack:     rack,
 		Solution: solution,
 		Analysis: analysis,
 	}

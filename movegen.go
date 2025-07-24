@@ -87,6 +87,12 @@ of the SCRABBLE trademark.
 
 package skrafl
 
+import (
+	"os"
+)
+
+var testMode = os.Getenv("TEST_MODE") == "true"
+
 // ExtendRightNavigator implements the core of the Appel-Jacobson
 // algorithm. It proceeds along an Axis, covering empty Squares with
 // Tiles from the Rack while obeying constraints from the Dawg and
@@ -148,17 +154,17 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 	// Finally, test the cross-checks
 	if ern.axis.Allows(ern.index, letter) {
 		// The tile successfully completes any cross-words
-		/*
-			// DEBUG: verify that the cross-checks hold
+		// DEBUG: verify that the cross-checks hold
+		if testMode {
 			sq := ern.axis.sq[ern.index]
 			left, right := ern.axis.state.Board.CrossWords(sq.Row, sq.Col, !ern.axis.horizontal)
-			if left != "" || right != "" {
-				word := left + string(letter) + right
+			if len(left) > 0 || len(right) > 0 {
+				word := string(left) + string(letter) + string(right)
 				if !ern.axis.state.Dawg.Find(word) {
 					panic("Cross-check violation!")
 				}
 			}
-		*/
+		}
 		return mRackTile
 	}
 	return mNo
@@ -512,7 +518,7 @@ func (state *GameState) GenerateMoves() []Move {
 	}
 	// Collect move candidates from all goroutines and
 	// append them to the moves list
-	moves := make([]Move, 0, 256) // Allocate space for 256 moves
+	moves := make([]Move, 0, 512) // Allocate space for 512 moves
 	for i := 0; i < BoardSize*2; i++ {
 		moves = append(moves, (<-resultMoves)...)
 	}
