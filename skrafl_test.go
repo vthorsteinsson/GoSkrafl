@@ -784,7 +784,7 @@ func TestGenerateRiddle(t *testing.T) {
 		NumWorkers: 4,
 	}
 
-	riddle, err := GenerateRiddle(params, DefaultHeuristics)
+	riddle, _, err := GenerateRiddle(params, DefaultHeuristics)
 
 	if err != nil {
 		// It's not an error if no riddle is found in the time limit.

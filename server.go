@@ -10,6 +10,7 @@ package skrafl
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"runtime"
 	"sort"
@@ -28,10 +29,8 @@ type MovesRequest struct {
 
 // A class describing incoming /riddle requests
 type RiddleRequest struct {
-	Locale           string `json:"locale"`
-	BoardType        string `json:"boardType"`
-	TimeLimitSeconds int    `json:"timeLimitSeconds"`
-	NumWorkers       int    `json:"numWorkers"`
+	Locale    string `json:"locale"`
+	BoardType string `json:"boardType"`
 }
 
 // A kludge to be able to marshal a Move with its score
@@ -275,14 +274,8 @@ func HandleGenerateRiddle(w http.ResponseWriter, req RiddleRequest) {
 		return
 	}
 
-	timeLimit := time.Duration(req.TimeLimitSeconds) * time.Second
-	if timeLimit <= 0 {
-		timeLimit = 5 * time.Second // Default to 5 seconds if not specified
-	}
-	numWorkers := req.NumWorkers
-	if numWorkers <= 0 {
-		numWorkers = runtime.NumCPU() // Scale based on available cores
-	}
+	timeLimit := 3 * time.Second   // Use a maximum of 3 seconds by default
+	numWorkers := runtime.NumCPU() // Use the available CPU cores by default
 
 	dawg, tileSet, err := decodeLocale(req.Locale, boardType)
 	if err != nil {
@@ -299,13 +292,13 @@ func HandleGenerateRiddle(w http.ResponseWriter, req RiddleRequest) {
 		NumWorkers: numWorkers,
 	}
 
-	// Select the appropriate heuristics for the locale.
+	// Select the appropriate riddle selection heuristics for the locale
 	heuristics := DefaultHeuristics
 	if params.Locale == "is" || params.Locale == "is_IS" {
 		heuristics = IcelandicHeuristics
 	}
 
-	riddle, err := GenerateRiddle(params, heuristics)
+	riddle, stats, err := GenerateRiddle(params, heuristics)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -314,6 +307,8 @@ func HandleGenerateRiddle(w http.ResponseWriter, req RiddleRequest) {
 	if err := json.NewEncoder(w).Encode(riddle); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	// Log statistics about the riddle generation
+	log.Printf("Riddle generated for locale '%s': %+v", req.Locale, stats)
 }
 
 // Prepare an error/false response

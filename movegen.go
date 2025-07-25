@@ -89,9 +89,8 @@ package skrafl
 
 import (
 	"os"
+	"sync"
 )
-
-var testMode = os.Getenv("TEST_MODE") == "true"
 
 // ExtendRightNavigator implements the core of the Appel-Jacobson
 // algorithm. It proceeds along an Axis, covering empty Squares with
@@ -135,6 +134,11 @@ func (ern *ExtendRightNavigator) Init(axis *Axis, anchor int, rack []rune) {
 	ern.moves = make([]Move, 0)
 }
 
+var (
+	testMode     bool
+	testModeOnce sync.Once
+)
+
 func (ern *ExtendRightNavigator) check(letter rune) int {
 	tileAtSq := ern.axis.sq[ern.index].Tile
 	if tileAtSq != nil {
@@ -154,7 +158,10 @@ func (ern *ExtendRightNavigator) check(letter rune) int {
 	// Finally, test the cross-checks
 	if ern.axis.Allows(ern.index, letter) {
 		// The tile successfully completes any cross-words
-		// DEBUG: verify that the cross-checks hold
+		// DEBUG: when running in test mode, verify that the cross-checks hold
+		testModeOnce.Do(func() {
+			testMode = os.Getenv("TEST_MODE") == "true"
+		})
 		if testMode {
 			sq := ern.axis.sq[ern.index]
 			left, right := ern.axis.state.Board.CrossWords(sq.Row, sq.Col, !ern.axis.horizontal)

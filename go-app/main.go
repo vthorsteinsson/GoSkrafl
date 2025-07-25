@@ -82,6 +82,14 @@ func wordcheckHandler(w http.ResponseWriter, r *http.Request) {
 	skrafl.HandleWordCheckRequest(w, req)
 }
 
+func riddleHandler(w http.ResponseWriter, r *http.Request) {
+	var req skrafl.RiddleRequest
+	if !validate(w, r, &req) {
+		return
+	}
+	skrafl.HandleGenerateRiddle(w, req)
+}
+
 func warmupHandler(w http.ResponseWriter, r *http.Request) {
 	// No concrete action required
 	log.Println("Warmup request received")
@@ -90,7 +98,7 @@ func warmupHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// Log to Google App Engine
 	log.SetOutput(os.Stderr)
-	log.Printf("Moves service starting, Go version %s", runtime.Version())
+	log.Printf("Moves service starting, Go version %s, %d cores", runtime.Version(), runtime.NumCPU())
 	// Figure out the authorization header, if required
 	ACCESS_KEY := os.Getenv("ACCESS_KEY")
 	if ACCESS_KEY != "" {
@@ -101,6 +109,7 @@ func main() {
 	// Set up the actual service handlers
 	http.HandleFunc("/moves", movesHandler)
 	http.HandleFunc("/wordcheck", wordcheckHandler)
+	http.HandleFunc("/riddle", riddleHandler)
 	// Establish the port number to listen on, defaulting to 8080
 	port := os.Getenv("PORT")
 	if port == "" {
