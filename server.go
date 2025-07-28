@@ -274,7 +274,7 @@ func HandleGenerateRiddle(w http.ResponseWriter, req RiddleRequest) {
 		return
 	}
 
-	timeLimit := 3 * time.Second   // Use a maximum of 3 seconds by default
+	timeLimit := 20 * time.Second  // Use a maximum of 20 seconds by default
 	numWorkers := runtime.NumCPU() // Use the available CPU cores by default
 
 	dawg, tileSet, err := decodeLocale(req.Locale, boardType)
@@ -284,12 +284,13 @@ func HandleGenerateRiddle(w http.ResponseWriter, req RiddleRequest) {
 	}
 
 	params := GenerationParams{
-		Locale:     req.Locale,
-		BoardType:  boardType,
-		Dawg:       dawg,
-		TileSet:    tileSet,
-		TimeLimit:  timeLimit,
-		NumWorkers: numWorkers,
+		Locale:        req.Locale,
+		BoardType:     boardType,
+		Dawg:          dawg,
+		TileSet:       tileSet,
+		TimeLimit:     timeLimit,
+		NumWorkers:    numWorkers,
+		NumCandidates: 50, // Try to generate up to 50 candidates
 	}
 
 	// Select the appropriate riddle selection heuristics for the locale

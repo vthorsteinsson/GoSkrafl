@@ -776,12 +776,13 @@ func TestGenerateRiddle(t *testing.T) {
 	}
 
 	params := GenerationParams{
-		Locale:     "is_IS",
-		BoardType:  "standard",
-		Dawg:       dawg,
-		TileSet:    tileSet,
-		TimeLimit:  2 * time.Second,
-		NumWorkers: 4,
+		Locale:        "is_IS",
+		BoardType:     "standard",
+		Dawg:          dawg,
+		TileSet:       tileSet,
+		TimeLimit:     5 * time.Second,
+		NumWorkers:    4,
+		NumCandidates: 10,
 	}
 
 	riddle, _, err := GenerateRiddle(params, DefaultHeuristics)

@@ -12,17 +12,19 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // GenerationParams holds the parameters for riddle generation.
 type GenerationParams struct {
-	Locale     string
-	BoardType  string
-	Dawg       *Dawg    // The DAWG for the locale
-	TileSet    *TileSet // The tile set for the locale
-	TimeLimit  time.Duration
-	NumWorkers int
+	Locale        string
+	BoardType     string
+	Dawg          *Dawg    // The DAWG for the locale
+	TileSet       *TileSet // The tile set for the locale
+	TimeLimit     time.Duration
+	NumWorkers    int
+	NumCandidates int // Number of candidates to generate
 }
 
 // HeuristicConfig defines the parameters for what constitutes a "good" riddle.
@@ -98,7 +100,7 @@ type scoredMove struct {
 }
 
 type Stats struct {
-	Candidates int
+	Candidates int64 // Number of candidates generated
 	// The following are rejection statistics
 	NoValidMove      int // No valid move available
 	GameEnded        int // Game already ended, no riddle possible
@@ -274,7 +276,7 @@ func GenerateRiddle(params GenerationParams, heuristics HeuristicConfig) (*Riddl
 	for i := 0; i < numWorkers; i++ {
 		go func() {
 			defer wg.Done()
-			for {
+			for atomic.LoadInt64(&stats.Candidates) < int64(params.NumCandidates) {
 				select {
 				case <-ctx.Done():
 					return
@@ -282,7 +284,7 @@ func GenerateRiddle(params GenerationParams, heuristics HeuristicConfig) (*Riddl
 					candidate, err := generateCandidate(ctx, params, heuristics, stats)
 					if err == nil && candidate != nil {
 						candidateChan <- candidate
-						stats.Candidates++
+						atomic.AddInt64(&stats.Candidates, 1)
 					}
 				}
 			}
