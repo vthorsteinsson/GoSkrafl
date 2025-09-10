@@ -29,28 +29,30 @@ type GenerationParams struct {
 
 // HeuristicConfig defines the parameters for what constitutes a "good" riddle.
 type HeuristicConfig struct {
-	MinTiles       int     // Minimum number of tiles on the board
-	MaxTiles       int     // Maximum number of tiles on the board
-	MinMoves       int     // Minimum number of valid tile moves available
-	MinBestScore   int     // Minimum score for the best move
-	MinWordLength  int     // Minimum length of the solution word
-	BingoBonus     float64 // Bonus for bingo moves (all tiles used)
-	ScoreGapBonus  float64 // Bonus factor for the gap between the best and second-best move scores
-	NumCoversBonus float64 // Bonus factor for the number of tiles in the move
-	SolutionFilter *Dawg   // Optional: A DAWG to filter solution words against
+	MinTiles           int     // Minimum number of tiles on the board
+	MaxTiles           int     // Maximum number of tiles on the board
+	MinMoves           int     // Minimum number of valid tile moves available
+	MinBestScore       int     // Minimum score for the best move
+	MinWordLength      int     // Minimum length of the solution word
+	BingoBonus         float64 // Bonus for bingo moves (all tiles used)
+	ScoreGapBonus      float64 // Bonus factor for the gap between the best and second-best move scores
+	NumCoversBonus     float64 // Bonus factor for the number of tiles in the move
+	SolutionFilter     *Dawg   // Optional: A DAWG to filter solution words against
+	NoDoubleTripleWord bool    // If true, reject moves that span multiple triple-word squares (9x multiplier)
 }
 
 // DefaultHeuristics provides a baseline configuration.
 var DefaultHeuristics = HeuristicConfig{
-	MinTiles:       50,
-	MaxTiles:       70,
-	MinMoves:       16,
-	MinBestScore:   30,
-	MinWordLength:  3,
-	BingoBonus:     15.0,
-	ScoreGapBonus:  1.2,
-	NumCoversBonus: 2.0,
-	SolutionFilter: nil,
+	MinTiles:           50,
+	MaxTiles:           70,
+	MinMoves:           16,
+	MinBestScore:       30,
+	MinWordLength:      3,
+	BingoBonus:         15.0,
+	ScoreGapBonus:      1.2,
+	NumCoversBonus:     2.0,
+	SolutionFilter:     nil,
+	NoDoubleTripleWord: true, // Reject obvious 9x multiplier moves
 }
 
 // IcelandicHeuristics adds a common word filter for Icelandic riddles.
@@ -102,14 +104,15 @@ type scoredMove struct {
 type Stats struct {
 	Candidates int64 // Number of candidates generated
 	// The following are rejection statistics
-	NoValidMove      int // No valid move available
-	GameEnded        int // Game already ended, no riddle possible
-	ContextCancelled int // Context was cancelled before a riddle could be generated
-	TooFewMoves      int // Unacceptable number of tile moves available
-	TooManyMoves     int // Unacceptable number of tile moves available
-	TooLowBestScore  int // Best move score too low
-	TooShortWord     int // Best move word too short
-	WordNotCommon    int // Solution word not in the common words dictionary
+	NoValidMove        int // No valid move available
+	GameEnded          int // Game already ended, no riddle possible
+	ContextCancelled   int // Context was cancelled before a riddle could be generated
+	TooFewMoves        int // Unacceptable number of tile moves available
+	TooManyMoves       int // Unacceptable number of tile moves available
+	TooLowBestScore    int // Best move score too low
+	TooShortWord       int // Best move word too short
+	WordNotCommon      int // Solution word not in the common words dictionary
+	DoubleTripleWord   int // Best move spans multiple triple-word squares (too obvious)
 }
 
 // generateCandidate creates a single riddle candidate.
@@ -209,6 +212,12 @@ func generateCandidate(
 			stats.WordNotCommon++
 			return nil, nil // Solution word not in the common words dictionary.
 		}
+	}
+
+	// Check if the move spans multiple triple-word squares (too obvious)
+	if heuristics.NoDoubleTripleWord && tm.CoversMultipleTripleWords(board) {
+		stats.DoubleTripleWord++
+		return nil, nil // Best move is too obvious (9x multiplier)
 	}
 
 	secondBestScore := bestMove.Score

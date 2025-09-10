@@ -102,6 +102,26 @@ type Covers map[Coordinate]Cover
 // all the 7 tiles in the rack in one move
 const BingoBonus = 50
 
+// CoversMultipleTripleWords checks if this move covers two or more triple-word squares.
+// This would result in a 9x (or higher) word multiplier, making the move too obvious.
+func (tm *TileMove) CoversMultipleTripleWords(board *Board) bool {
+	tripleWordCount := 0
+	
+	for coord := range tm.Covers {
+		sq := board.Sq(coord.Row, coord.Col)
+		// Check if this square is a triple-word square (WordMultiplier == 3)
+		// and it's empty (multiplier only applies to newly placed tiles)
+		if sq.WordMultiplier == 3 && sq.Tile == nil {
+			tripleWordCount++
+			if tripleWordCount >= 2 {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
 // NewTileMove creates a new TileMove object with the given
 // Covers, i.e. Tile coverings
 func NewTileMove(board *Board, covers Covers) *TileMove {
