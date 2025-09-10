@@ -349,7 +349,7 @@ func (dawg *Dawg) CrossSet(left, right []rune) uint {
 // crossCache encapsulates a simple LRU cached map of
 // cross-set matching patterns ("af?a") to bitmapped sets
 type crossCache struct {
-	mux sync.RWMutex
+	mux sync.Mutex
 	lru *simplelru.LRU
 }
 
@@ -364,20 +364,11 @@ func (cc *crossCache) Init(size int) {
 // called to calculate the associated bitmap set before storing
 // it in the cache.
 func (cc *crossCache) Lookup(key string, fetchFunc func(string) uint) uint {
-	cc.mux.RLock()
-	if bitMap, ok := cc.lru.Get(key); ok {
-		cc.mux.RUnlock()
-		return bitMap.(uint)
-	}
-	cc.mux.RUnlock()
-
 	cc.mux.Lock()
 	defer cc.mux.Unlock()
-	// Double-check
 	if bitMap, ok := cc.lru.Get(key); ok {
 		return bitMap.(uint)
 	}
-
 	bitMap := fetchFunc(key)
 	cc.lru.Add(key, bitMap)
 	return bitMap
