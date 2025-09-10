@@ -25,3 +25,4 @@ go-app/go-app
 
 # Environment variables
 go-app/env.yaml
+.env.local

@@ -57,7 +57,7 @@ A `POST` request is appropriate as it's an action that results in the creation o
 ```
 *   `locale`: (Required) A string like "is_IS", "en_US", "en_GB", etc. This will be passed to the existing `decodeLocale()` function to select the correct dictionary and tile set.
 *   `boardType`: (Optional) "standard" or "explo". Defaults to "standard".
-*   `timeLimitSeconds`: (Optional) Maximum time for generation. Defaults to 15.
+*   `timeLimitSeconds`: (Optional) Maximum time for generation in seconds. Defaults to 15.
 
 **Success Response (200 OK):**
 A JSON object representing the chosen riddle. All letters are lowercase. Blank tiles are represented by `'?'`.
@@ -69,7 +69,7 @@ A JSON object representing the chosen riddle. All letters are lowercase. Blank t
   "rack": "st?ngur", // 7-tile rack as a string, '?' is a blank
   "solution": {
     "move": "gæs",
-    "square": "8H", // "A1"-"O15" for horizontal, "1A"-"15O" for vertical
+    "coord": "8H", // "A1"-"O15" for horizontal, "1A"-"15O" for vertical
     "score": 88,
     "description": "gæs(88)"
   },
