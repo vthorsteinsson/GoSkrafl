@@ -42,6 +42,8 @@ type BatchStats struct {
 	ByLocale       map[string]*LocaleStats
 	StartTime      time.Time
 	EndTime        time.Time
+	// Aggregated rejection statistics from all candidate attempts
+	RejectionStats *Stats
 }
 
 // LocaleStats tracks statistics for a specific locale
@@ -86,7 +88,8 @@ func NewRiddleGenerator(config RiddleGeneratorConfig) (*RiddleGenerator, error) 
 		config: config,
 		client: client,
 		stats: &BatchStats{
-			ByLocale: make(map[string]*LocaleStats),
+			ByLocale:       make(map[string]*LocaleStats),
+			RejectionStats: &Stats{},
 		},
 	}, nil
 }
@@ -221,14 +224,13 @@ func (rg *RiddleGenerator) generateForDateLocale(job GenerationJob) GenerationRe
 
 	// Generate the riddle
 	riddle, stats, err := GenerateRiddle(params, heuristics)
+	result.Stats = stats // Always store stats for aggregation
 	if err != nil {
 		result.Error = err
-		result.Stats = stats
 		return result
 	}
 
 	result.Riddle = riddle
-	result.Stats = stats
 
 	// Save to Datastore if not dry-run
 	if !rg.config.DryRun && rg.client != nil {
@@ -269,6 +271,22 @@ func (rg *RiddleGenerator) updateStats(result GenerationResult) {
 	localeStats := rg.stats.ByLocale[result.Job.Locale]
 	localeStats.Attempted++
 	rg.stats.TotalAttempted++
+
+	// Aggregate rejection statistics from this generation attempt
+	if result.Stats != nil {
+		rg.stats.RejectionStats.Candidates += result.Stats.Candidates
+		rg.stats.RejectionStats.Attempts += result.Stats.Attempts
+		rg.stats.RejectionStats.NoValidMove += result.Stats.NoValidMove
+		rg.stats.RejectionStats.GameEnded += result.Stats.GameEnded
+		rg.stats.RejectionStats.ContextCancelled += result.Stats.ContextCancelled
+		rg.stats.RejectionStats.TooFewMoves += result.Stats.TooFewMoves
+		rg.stats.RejectionStats.TooManyMoves += result.Stats.TooManyMoves
+		rg.stats.RejectionStats.TooLowBestScore += result.Stats.TooLowBestScore
+		rg.stats.RejectionStats.TooShortWord += result.Stats.TooShortWord
+		rg.stats.RejectionStats.WordNotCommon += result.Stats.WordNotCommon
+		rg.stats.RejectionStats.DoubleTripleWord += result.Stats.DoubleTripleWord
+		rg.stats.RejectionStats.TiedBestMoves += result.Stats.TiedBestMoves
+	}
 
 	if result.Error != nil {
 		localeStats.Failed++
@@ -378,7 +396,60 @@ func (rg *RiddleGenerator) printSummary() {
 
 	fmt.Printf("\nTotal: %d riddles generated, %d failed\n",
 		rg.stats.TotalGenerated, rg.stats.TotalFailed)
-	fmt.Printf("Total time: %s\n", duration.Round(time.Second))
+	
+	// Print rejection statistics
+	if rg.stats.RejectionStats != nil && rg.stats.RejectionStats.Attempts > 0 {
+		fmt.Println("\n" + strings.Repeat("-", 60))
+		fmt.Println("Candidate Rejection Statistics:")
+		rs := rg.stats.RejectionStats
+		totalAttempts := rs.Attempts
+		totalRejected := rs.NoValidMove + rs.GameEnded + rs.TooFewMoves + rs.TooManyMoves + 
+			rs.TooLowBestScore + rs.TooShortWord + rs.WordNotCommon + 
+			rs.DoubleTripleWord + rs.TiedBestMoves + rs.ContextCancelled
+		totalAccepted := rs.Candidates
+		
+		fmt.Printf("\n  Total candidate attempts: %d\n", totalAttempts)
+		fmt.Printf("  Candidates accepted: %d (%.1f%%)\n", 
+			totalAccepted, float64(totalAccepted)*100.0/float64(totalAttempts))
+		fmt.Printf("  Candidates rejected: %d (%.1f%%)\n", 
+			totalRejected, float64(totalRejected)*100.0/float64(totalAttempts))
+		
+		if totalRejected > 0 {
+			fmt.Println("\n  Rejection reasons:")
+			if rs.TiedBestMoves > 0 {
+				fmt.Printf("    - Tied best moves (ambiguous): %d\n", rs.TiedBestMoves)
+			}
+			if rs.DoubleTripleWord > 0 {
+				fmt.Printf("    - Double triple-word (too obvious): %d\n", rs.DoubleTripleWord)
+			}
+			if rs.WordNotCommon > 0 {
+				fmt.Printf("    - Word not common: %d\n", rs.WordNotCommon)
+			}
+			if rs.TooLowBestScore > 0 {
+				fmt.Printf("    - Score too low: %d\n", rs.TooLowBestScore)
+			}
+			if rs.TooFewMoves > 0 {
+				fmt.Printf("    - Too few moves: %d\n", rs.TooFewMoves)
+			}
+			if rs.TooShortWord > 0 {
+				fmt.Printf("    - Word too short: %d\n", rs.TooShortWord)
+			}
+			if rs.NoValidMove > 0 {
+				fmt.Printf("    - No valid move: %d\n", rs.NoValidMove)
+			}
+			if rs.GameEnded > 0 {
+				fmt.Printf("    - Game ended: %d\n", rs.GameEnded)
+			}
+			if rs.TooManyMoves > 0 {
+				fmt.Printf("    - Too many moves: %d\n", rs.TooManyMoves)
+			}
+			if rs.ContextCancelled > 0 {
+				fmt.Printf("    - Context cancelled: %d\n", rs.ContextCancelled)
+			}
+		}
+	}
+	
+	fmt.Printf("\nTotal time: %s\n", duration.Round(time.Second))
 
 	if rg.config.DryRun {
 		fmt.Println("\n[DRY-RUN MODE: No riddles were saved to the database]")

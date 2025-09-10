@@ -102,7 +102,8 @@ type scoredMove struct {
 }
 
 type Stats struct {
-	Candidates int64 // Number of candidates generated
+	Candidates int64 // Number of successful candidates that passed all filters
+	Attempts   int64 // Total number of candidate generation attempts
 	// The following are rejection statistics
 	NoValidMove      int // No valid move available
 	GameEnded        int // Game already ended, no riddle possible
@@ -123,6 +124,9 @@ func generateCandidate(
 	heuristics HeuristicConfig,
 	stats *Stats,
 ) (*RiddleCandidate, error) {
+	// Increment attempt counter for every call
+	atomic.AddInt64(&stats.Attempts, 1)
+	
 	// Create a new game with two high-score robots.
 	p1 := NewHighScoreRobot()
 	p2 := NewHighScoreRobot()
