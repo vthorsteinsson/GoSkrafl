@@ -104,15 +104,16 @@ type scoredMove struct {
 type Stats struct {
 	Candidates int64 // Number of candidates generated
 	// The following are rejection statistics
-	NoValidMove        int // No valid move available
-	GameEnded          int // Game already ended, no riddle possible
-	ContextCancelled   int // Context was cancelled before a riddle could be generated
-	TooFewMoves        int // Unacceptable number of tile moves available
-	TooManyMoves       int // Unacceptable number of tile moves available
-	TooLowBestScore    int // Best move score too low
-	TooShortWord       int // Best move word too short
-	WordNotCommon      int // Solution word not in the common words dictionary
-	DoubleTripleWord   int // Best move spans multiple triple-word squares (too obvious)
+	NoValidMove      int // No valid move available
+	GameEnded        int // Game already ended, no riddle possible
+	ContextCancelled int // Context was cancelled before a riddle could be generated
+	TooFewMoves      int // Unacceptable number of tile moves available
+	TooManyMoves     int // Unacceptable number of tile moves available
+	TooLowBestScore  int // Best move score too low
+	TooShortWord     int // Best move word too short
+	WordNotCommon    int // Solution word not in the common words dictionary
+	DoubleTripleWord int // Best move spans multiple triple-word squares (too obvious)
+	TiedBestMoves    int // Multiple moves tie for the best score (ambiguous solution)
 }
 
 // generateCandidate creates a single riddle candidate.
@@ -216,13 +217,19 @@ func generateCandidate(
 
 	// Check if the move spans multiple triple-word squares (too obvious)
 	if heuristics.NoDoubleTripleWord && tm.CoversMultipleTripleWords(board) {
+		// Location of best move is too obvious (9x multiplier)
 		stats.DoubleTripleWord++
-		return nil, nil // Best move is too obvious (9x multiplier)
+		return nil, nil
 	}
 
 	secondBestScore := bestMove.Score
 	if numMoves > 1 {
 		secondBestScore = scoredMoves[1].Score
+		// Check for tied best moves - we want a unique solution
+		if secondBestScore == bestMove.Score {
+			stats.TiedBestMoves++
+			return nil, nil // Multiple moves have the same best score (ambiguous riddle)
+		}
 	}
 
 	totalScore := 0

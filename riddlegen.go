@@ -284,6 +284,8 @@ func (rg *RiddleGenerator) updateStats(result GenerationResult) {
 				reason = "word_not_common"
 			} else if result.Stats.DoubleTripleWord > 0 {
 				reason = "double_triple_word"
+			} else if result.Stats.TiedBestMoves > 0 {
+				reason = "tied_best_moves"
 			} else if result.Stats.NoValidMove > 0 {
 				reason = "no_valid_move"
 			}
