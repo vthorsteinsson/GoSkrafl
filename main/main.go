@@ -9,9 +9,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"runtime"
+	"strings"
+	"time"
 
+	"github.com/joho/godotenv"
 	skrafl "github.com/vthorsteinsson/GoSkrafl"
 )
 
@@ -99,26 +104,131 @@ func riddleHandler(w http.ResponseWriter, r *http.Request) {
 	skrafl.HandleGenerateRiddle(w, req)
 }
 
-func runServer() {
+func runServer(port int) {
 	http.HandleFunc("/moves", movesHandler)
 	http.HandleFunc("/wordcheck", wordcheckHandler)
 	http.HandleFunc("/riddle", riddleHandler)
-	http.ListenAndServe(":8080", nil)
+	fmt.Printf("Starting HTTP server on port %d...\n", port)
+	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+}
+
+func runRiddleGenerator(
+	startDate, endDate string,
+	localeList string,
+	projectID string,
+	namespace string,
+	workers int,
+	timeLimit int,
+	candidates int,
+	minScore int,
+	dryRun bool,
+) {
+	// Parse dates
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		log.Fatalf("Invalid start date: %v", err)
+	}
+	end, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		log.Fatalf("Invalid end date: %v", err)
+	}
+	if end.Before(start) {
+		log.Fatalf("End date must be after start date")
+	}
+
+	// Parse locales
+	locales := strings.Split(localeList, ",")
+	for i, loc := range locales {
+		locales[i] = strings.TrimSpace(loc)
+	}
+
+	// Create riddle generator config
+	config := skrafl.RiddleGeneratorConfig{
+		ProjectID:     projectID,
+		Namespace:     namespace,
+		Workers:       workers,
+		TimeLimit:     time.Duration(timeLimit) * time.Second,
+		NumCandidates: candidates,
+		MinScore:      minScore,
+		DryRun:        dryRun,
+	}
+
+	// Create and run the generator
+	generator, err := skrafl.NewRiddleGenerator(config)
+	if err != nil {
+		log.Fatalf("Failed to create riddle generator: %v", err)
+	}
+	defer generator.Close()
+
+	if err := generator.GenerateForDateRange(start, end, locales); err != nil {
+		log.Fatalf("Failed to generate riddles: %v", err)
+	}
 }
 
 func main() {
-	// Modify the following depending on the type of Game wanted
+	// Load .env files in order of precedence (later files override earlier ones)
+	_ = godotenv.Load(".env")       // Load defaults (safe to commit)
+	_ = godotenv.Load(".env.local") // Load local overrides (never commit)
+	
+	// Existing flags
+	server := flag.Bool("s", false, "Run as a HTTP server")
+	port := flag.Int("p", 8080, "Port for HTTP server")
 	dict := flag.String("d", "ice", "Dictionary to use (otcwl, sowpods, osps, ice)")
 	boardType := flag.String("b", "standard", "Board type (standard, explo)")
 	num := flag.Int("n", 10, "Number of games to simulate")
 	quiet := flag.Bool("q", false, "Suppress output of game state and moves")
-	server := flag.Bool("s", false, "Run as a HTTP server")
+
+	// Riddle generation flags
+	generateRiddles := flag.Bool("generate-riddles", false, "Generate riddles for date range")
+	startDate := flag.String("start-date", "", "Start date (YYYY-MM-DD)")
+	endDate := flag.String("end-date", "", "End date (YYYY-MM-DD)")
+	locale := flag.String("locale", "is_IS", "Locale(s) for riddle generation (comma-separated)")
+	projectID := flag.String("project-id", os.Getenv("PROJECT_ID"), "Google Cloud project ID")
+	namespace := flag.String("namespace", "", "Datastore namespace")
+	workers := flag.Int("workers", 0, "Number of workers (0 = NumCPU)")
+	timeLimit := flag.Int("time-limit", 20, "Time limit in seconds per riddle")
+	candidates := flag.Int("candidates", 100, "Number of candidates to generate per riddle")
+	minScore := flag.Int("min-score", 40, "Minimum acceptable best move score")
+	dryRun := flag.Bool("dry-run", false, "Test mode without database writes")
+
 	flag.Parse()
-	if server != nil && *server {
+
+	// Handle server mode
+	if *server {
+		if *generateRiddles {
+			log.Fatal("Cannot use -s (server) and -generate-riddles together")
+		}
 		// Run a HTTP server
-		runServer()
+		runServer(*port)
 		return
 	}
+
+	// Handle riddle generation mode
+	if *generateRiddles {
+		if *startDate == "" || *endDate == "" {
+			log.Fatal("Both -start-date and -end-date are required for riddle generation")
+		}
+		if *projectID == "" {
+			log.Fatal("Project ID is required (set PROJECT_ID env var or use -project-id flag)")
+		}
+		numWorkers := *workers
+		if numWorkers <= 0 {
+			numWorkers = runtime.NumCPU()
+		}
+		runRiddleGenerator(
+			*startDate, *endDate,
+			*locale,
+			*projectID,
+			*namespace,
+			numWorkers,
+			*timeLimit,
+			*candidates,
+			*minScore,
+			*dryRun,
+		)
+		return
+	}
+
 	gameConstructor := skrafl.NewIcelandicGame
 	switch *dict {
 	case "octwl":

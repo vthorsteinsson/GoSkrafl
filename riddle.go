@@ -29,28 +29,30 @@ type GenerationParams struct {
 
 // HeuristicConfig defines the parameters for what constitutes a "good" riddle.
 type HeuristicConfig struct {
-	MinTiles       int     // Minimum number of tiles on the board
-	MaxTiles       int     // Maximum number of tiles on the board
-	MinMoves       int     // Minimum number of valid tile moves available
-	MinBestScore   int     // Minimum score for the best move
-	MinWordLength  int     // Minimum length of the solution word
-	BingoBonus     float64 // Bonus for bingo moves (all tiles used)
-	ScoreGapBonus  float64 // Bonus factor for the gap between the best and second-best move scores
-	NumCoversBonus float64 // Bonus factor for the number of tiles in the move
-	SolutionFilter *Dawg   // Optional: A DAWG to filter solution words against
+	MinTiles           int     // Minimum number of tiles on the board
+	MaxTiles           int     // Maximum number of tiles on the board
+	MinMoves           int     // Minimum number of valid tile moves available
+	MinBestScore       int     // Minimum score for the best move
+	MinWordLength      int     // Minimum length of the solution word
+	BingoBonus         float64 // Bonus for bingo moves (all tiles used)
+	ScoreGapBonus      float64 // Bonus factor for the gap between the best and second-best move scores
+	NumCoversBonus     float64 // Bonus factor for the number of tiles in the move
+	SolutionFilter     *Dawg   // Optional: A DAWG to filter solution words against
+	NoDoubleTripleWord bool    // If true, reject moves that span multiple triple-word squares (9x multiplier)
 }
 
 // DefaultHeuristics provides a baseline configuration.
 var DefaultHeuristics = HeuristicConfig{
-	MinTiles:       50,
-	MaxTiles:       70,
-	MinMoves:       16,
-	MinBestScore:   30,
-	MinWordLength:  3,
-	BingoBonus:     15.0,
-	ScoreGapBonus:  1.2,
-	NumCoversBonus: 2.0,
-	SolutionFilter: nil,
+	MinTiles:           54,
+	MaxTiles:           70,
+	MinMoves:           16,
+	MinBestScore:       30,
+	MinWordLength:      3,
+	BingoBonus:         0.0, // Bingoes already have a bonus of 50!
+	ScoreGapBonus:      1.2, // Prefer uniqueness of highest scoring move
+	NumCoversBonus:     3.0, // Prefer longer words
+	SolutionFilter:     nil,
+	NoDoubleTripleWord: true, // Reject obvious 9x multiplier moves
 }
 
 // IcelandicHeuristics adds a common word filter for Icelandic riddles.
@@ -89,8 +91,8 @@ type Riddle struct {
 
 // RiddleCandidate holds a potential riddle and its evaluated metrics.
 type RiddleCandidate struct {
-	Riddle *Riddle
-	Score  float64
+	Riddle    *Riddle
+	RankScore float64 // The comparative rank score between riddle candidates
 }
 
 // scoredMove is a helper struct to hold a move and its score for sorting.
@@ -100,7 +102,8 @@ type scoredMove struct {
 }
 
 type Stats struct {
-	Candidates int64 // Number of candidates generated
+	Candidates int64 // Number of successful candidates that passed all filters
+	Attempts   int64 // Total number of candidate generation attempts
 	// The following are rejection statistics
 	NoValidMove      int // No valid move available
 	GameEnded        int // Game already ended, no riddle possible
@@ -110,6 +113,8 @@ type Stats struct {
 	TooLowBestScore  int // Best move score too low
 	TooShortWord     int // Best move word too short
 	WordNotCommon    int // Solution word not in the common words dictionary
+	DoubleTripleWord int // Best move spans multiple triple-word squares (too obvious)
+	TiedBestMoves    int // Multiple moves tie for the best score (ambiguous solution)
 }
 
 // generateCandidate creates a single riddle candidate.
@@ -119,6 +124,9 @@ func generateCandidate(
 	heuristics HeuristicConfig,
 	stats *Stats,
 ) (*RiddleCandidate, error) {
+	// Increment attempt counter for every call
+	atomic.AddInt64(&stats.Attempts, 1)
+
 	// Create a new game with two high-score robots.
 	p1 := NewHighScoreRobot()
 	p2 := NewHighScoreRobot()
@@ -170,7 +178,7 @@ func generateCandidate(
 	rack := state.Rack.AsString()
 	moves := state.GenerateMoves()
 
-	// Score and sort the moves.
+	// Score the moves
 	scoredMoves := make([]scoredMove, 0, len(moves))
 	for _, m := range moves {
 		// We are only interested in TileMoves for riddles
@@ -179,21 +187,37 @@ func generateCandidate(
 		}
 	}
 
+	// Check that the number of available tile moves is adequate
 	numMoves := len(scoredMoves)
 	if numMoves < heuristics.MinMoves {
 		stats.TooFewMoves++
-		return nil, nil // Unacceptable number of tile moves available
+		return nil, nil // Not enough moves available
 	}
 
+	// Sort the moves by score in descending order
 	sort.Slice(scoredMoves, func(i, j int) bool {
 		return scoredMoves[i].Score > scoredMoves[j].Score
 	})
 
+	// Check that the best move score is adequate
 	bestMove := scoredMoves[0]
 	if bestMove.Score < heuristics.MinBestScore {
 		stats.TooLowBestScore++
 		return nil, nil // Best move score too low
 	}
+
+	// Check that the best move score is unique
+	secondBestScore := bestMove.Score
+	if numMoves > 1 {
+		secondBestScore = scoredMoves[1].Score
+		// Check for tied best moves - we want a unique solution
+		if secondBestScore == bestMove.Score {
+			stats.TiedBestMoves++
+			return nil, nil // Multiple moves have the same best score (ambiguous riddle)
+		}
+	}
+
+	// Check that the best move word is long enough
 	tm := bestMove.Move
 	cleanWord := tm.CleanWord()
 	cleanRunes := []rune(cleanWord)
@@ -202,18 +226,20 @@ func generateCandidate(
 		return nil, nil // Best move word too short
 	}
 
+	// Check if the move spans multiple triple-word squares (too obvious)
+	if heuristics.NoDoubleTripleWord && tm.CoversMultipleTripleWords(board) {
+		// Location of best move is too obvious (9x multiplier)
+		stats.DoubleTripleWord++
+		return nil, nil
+	}
+
 	// If a solution filter is configured, apply it now.
 	// This is e.g. used to ensure that the solution word is a fairly common word.
 	if heuristics.SolutionFilter != nil {
 		if !heuristics.SolutionFilter.Find(cleanWord) {
 			stats.WordNotCommon++
-			return nil, nil // Solution word not in the common words dictionary.
+			return nil, nil // Solution word not in the common words dictionary
 		}
-	}
-
-	secondBestScore := bestMove.Score
-	if numMoves > 1 {
-		secondBestScore = scoredMoves[1].Score
 	}
 
 	totalScore := 0
@@ -245,7 +271,7 @@ func generateCandidate(
 		Analysis: analysis,
 	}
 
-	// Calculate the final ranking score for this candidate.
+	// Calculate the final ranking score for this candidate
 	rankScore := float64(bestMove.Score)
 	rankScore += float64(len(tm.Covers)) * heuristics.NumCoversBonus
 	rankScore += float64(bestMove.Score-secondBestScore) * heuristics.ScoreGapBonus
@@ -254,8 +280,8 @@ func generateCandidate(
 	}
 
 	return &RiddleCandidate{
-		Riddle: riddle,
-		Score:  rankScore,
+		Riddle:    riddle,
+		RankScore: rankScore,
 	}, nil
 }
 
@@ -309,11 +335,11 @@ func GenerateRiddle(params GenerationParams, heuristics HeuristicConfig) (*Riddl
 		return nil, nil, fmt.Errorf("could not generate a suitable riddle in the allotted time")
 	}
 
-	// Sort by our final rank score.
+	// Sort by our final rank score
 	sort.Slice(bestCandidates, func(i, j int) bool {
-		return bestCandidates[i].Score > bestCandidates[j].Score
+		return bestCandidates[i].RankScore > bestCandidates[j].RankScore
 	})
 
-	// Return the best scoring riddle.
+	// Return the best scoring riddle
 	return bestCandidates[0].Riddle, stats, nil
 }

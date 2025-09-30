@@ -29,8 +29,9 @@ type MovesRequest struct {
 
 // A class describing incoming /riddle requests
 type RiddleRequest struct {
-	Locale    string `json:"locale"`
-	BoardType string `json:"boardType"`
+	Locale           string `json:"locale"`
+	BoardType        string `json:"boardType"`
+	TimeLimitSeconds int    `json:"timeLimitSeconds"`
 }
 
 // A kludge to be able to marshal a Move with its score
@@ -274,7 +275,12 @@ func HandleGenerateRiddle(w http.ResponseWriter, req RiddleRequest) {
 		return
 	}
 
-	timeLimit := 20 * time.Second  // Use a maximum of 20 seconds by default
+	// Use timeLimitSeconds from request, default to 15 seconds if not specified
+	timeLimitSeconds := req.TimeLimitSeconds
+	if timeLimitSeconds <= 0 {
+		timeLimitSeconds = 15
+	}
+	timeLimit := time.Duration(timeLimitSeconds) * time.Second
 	numWorkers := runtime.NumCPU() // Use the available CPU cores by default
 
 	dawg, tileSet, err := decodeLocale(req.Locale, boardType)

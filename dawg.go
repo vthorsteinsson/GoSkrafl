@@ -72,7 +72,7 @@ type Dawg struct {
 	// The alphabet used by the DAWG vocabulary
 	alphabet Alphabet
 	// mux protects the iterNodeCache
-	mux           sync.Mutex
+	mux           sync.RWMutex
 	iterNodeCache map[uint32]*navStates
 	// crossCache is a cached map of matching patterns
 	// to bitmap sets of allowed characters
@@ -165,17 +165,25 @@ type navStates []navState
 // prefixes and associated next node offsets. We calculate
 // this list only once, and then cache it in the Dawg instance.
 func (dawg *Dawg) iterNode(offset uint32) *navStates {
-	// Start by looking for this offset in the cached map.
-	// We must lock the shared iterNodeCache object since
-	// we're reading it and possibly updating it.
-	// However, in the great majority of cases, the lock
-	// will be held for a very short time only.
-	dawg.mux.Lock()
-	defer dawg.mux.Unlock()
+	// 1. Attempt a read-only lock first for the common case.
+	dawg.mux.RLock()
 	if result, ok := dawg.iterNodeCache[offset]; ok {
-		// Found: return it
+		dawg.mux.RUnlock()
 		return result
 	}
+	dawg.mux.RUnlock()
+
+	// 2. If not found, acquire a full write lock.
+	dawg.mux.Lock()
+	defer dawg.mux.Unlock()
+
+	// 3. Double-check: another goroutine might have populated it
+	//    while we were waiting for the write lock.
+	if result, ok := dawg.iterNodeCache[offset]; ok {
+		return result
+	}
+
+	// 4. If still not found, calculate and write to the cache.
 	// This node has not been previously iterated:
 	// create the iteration data, cache them and return them
 	originalOffset := offset
@@ -405,4 +413,4 @@ var NorwegianBokmålDictionary = makeDawg("nsf2023.bin.dawg", NorwegianAlphabet)
 var NorwegianNynorskDictionary = makeDawg("nynorsk2024.bin.dawg", NorwegianAlphabet)
 
 // IcelandicCommonWordsDictionary contains a list of common Icelandic words, used for filtering.
-var IcelandicCommonWordsDictionary = makeDawg("midlungur.bin.dawg", IcelandicAlphabet)
+var IcelandicCommonWordsDictionary = makeDawg("amlodi.bin.dawg", IcelandicAlphabet)

@@ -34,7 +34,7 @@ func TestIcelandicDawg(t *testing.T) {
 	wordBase := IcelandicDictionary
 	positiveCases := []string{
 		"góðan", "daginn", "hér", "er", "prófun", "orðum", "ti", "do", "álínis",
-		"bríostur", "feik", "frisbí", "umr", "hæi",
+		"bríostur", "feik", "frisbí", "hæi", "áslagið",
 	}
 	negativeCases := []string{
 		"blex", "fauð", "á", "é", "this", "ösi",
