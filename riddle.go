@@ -259,7 +259,7 @@ func generateCandidate(
 
 	solution := Solution{
 		Move:        tm.Word, // Note: includes '?' for blank tiles
-		Coord:       Coord(tm.TopLeft.Row, tm.TopLeft.Col, tm.Horizontal),
+		Coord:       tm.Coordinate(),
 		Score:       bestMove.Score,
 		Description: tm.String(),
 	}

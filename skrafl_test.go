@@ -24,6 +24,7 @@ package skrafl
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -820,6 +821,11 @@ func TestGenerateRiddle(t *testing.T) {
 
 	if riddle.Analysis.BestMoveScore <= 0 {
 		t.Errorf("Expected analysis best move score to be positive, but got %d", riddle.Analysis.BestMoveScore)
+	}
+
+	// Verify that the Description starts with the Coord (plus a space)
+	if !strings.HasPrefix(riddle.Solution.Description, riddle.Solution.Coord+" ") {
+		t.Errorf("Description '%s' does not start with Coord '%s'", riddle.Solution.Description, riddle.Solution.Coord)
 	}
 }
 
