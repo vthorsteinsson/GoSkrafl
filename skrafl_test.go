@@ -829,6 +829,32 @@ func TestGenerateRiddle(t *testing.T) {
 	}
 }
 
+func TestCoord(t *testing.T) {
+	// Test horizontal coordinates: Row Letter + Column Number
+	// Row 0 ('A'), Col 0 ('1') -> "A1"
+	if c := Coord(0, 0, true); c != "A1" {
+		t.Errorf("Coord(0, 0, true) = %s, want A1", c)
+	}
+	// Row 7 ('H'), Col 7 ('8') -> "H8"
+	if c := Coord(7, 7, true); c != "H8" {
+		t.Errorf("Coord(7, 7, true) = %s, want H8", c)
+	}
+
+	// Test vertical coordinates: Column Number + Row Letter
+	// Row 0 ('A'), Col 0 ('1') -> "1A"
+	if c := Coord(0, 0, false); c != "1A" {
+		t.Errorf("Coord(0, 0, false) = %s, want 1A", c)
+	}
+	// Row 3 ('D'), Col 0 ('1') -> "1D"
+	if c := Coord(3, 0, false); c != "1D" {
+		t.Errorf("Coord(3, 0, false) = %s, want 1D", c)
+	}
+	// Row 14 ('O'), Col 14 ('15') -> "15O"
+	if c := Coord(14, 14, false); c != "15O" {
+		t.Errorf("Coord(14, 14, false) = %s, want 15O", c)
+	}
+}
+
 func TestMain(m *testing.M) {
 	// Set a global test flag
 	os.Setenv("TEST_MODE", "true")

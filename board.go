@@ -192,7 +192,7 @@ func Coord(row, col int, horizontal bool) string {
 	if horizontal {
 		return fmt.Sprintf("%c%d", 'A'+row, col+1)
 	}
-	return fmt.Sprintf("%d%c", row+1, 'A'+col)
+	return fmt.Sprintf("%d%c", col+1, 'A'+row)
 }
 
 // Return the coordinate of the start square for this board type
