@@ -8,6 +8,10 @@ main/debug
 main/main.exe
 main/main
 
+# Utility binaries in root directory
+/fix-riddles
+/gen-riddles
+
 # VS Code
 .vscode/
 

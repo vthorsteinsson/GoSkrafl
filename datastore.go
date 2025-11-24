@@ -129,9 +129,11 @@ func (dc *DatastoreClient) GetRiddleByKey(ctx context.Context, keyName string) (
 // ListRiddlesInRange retrieves all riddles in a date range
 func (dc *DatastoreClient) ListRiddlesInRange(ctx context.Context, startDate, endDate string) ([]*RiddleModel, error) {
 	// Query for all riddles with keys in the date range
+	// Use "\ufffd" (replacement character) as a high Unicode point to handle the upper bound.
+	// Since our keys are ASCII/UTF-8, this is safe and correct.
 	query := datastore.NewQuery(dc.kind).
 		FilterField("__key__", ">=", dc.makeKey(startDate+":")).
-		FilterField("__key__", "<=", dc.makeKey(endDate+":\xff")).
+		FilterField("__key__", "<=", dc.makeKey(endDate+":\ufffd")).
 		Order("__key__")
 
 	if dc.namespace != "" {
