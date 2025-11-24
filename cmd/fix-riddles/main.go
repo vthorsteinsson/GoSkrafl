@@ -87,7 +87,7 @@ func main() {
 					fixedCount++
 				}
 			} else {
-				log.Printf("[%s] Dry run: JSON would become %s", r.GetKey(), r.RiddleJSON)
+				// log.Printf("[%s] Dry run: JSON would become %s", r.GetKey(), r.RiddleJSON)
 				fixedCount++
 			}
 		}
