@@ -1,11 +1,14 @@
 
 # app.yaml file for GoSkrafl on Google App Engine
 
-runtime: go121
+runtime: go123
 
 service: moves
 
 instance_class: F1
+
+automatic_scaling:
+  max_instances: 2
 
 inbound_services:
 - warmup
