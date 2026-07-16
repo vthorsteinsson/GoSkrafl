@@ -1,7 +1,7 @@
 
 # app.yaml file for GoSkrafl on Google App Engine
 
-runtime: go123
+runtime: go125
 
 service: moves
 
