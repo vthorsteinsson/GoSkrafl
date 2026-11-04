@@ -24,6 +24,7 @@ package skrafl
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -670,6 +671,128 @@ func TestAxis(t *testing.T) {
 					wordMove.CleanWord(),
 				)
 			}
+		}
+	}
+}
+
+// coversKey returns a string that identifies a tile move by its covers
+func coversKey(covers Covers) string {
+	parts := make([]string, 0, len(covers))
+	for coord, cover := range covers {
+		parts = append(parts, fmt.Sprintf("%d,%d=%c%c",
+			coord.Row, coord.Col, cover.Letter, cover.Meaning))
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, ";")
+}
+
+// tileMovesByKey returns the generated tile moves, keyed by their covers,
+// reporting an error for each move that is generated more than once
+func tileMovesByKey(t *testing.T, state *GameState) map[string]*TileMove {
+	t.Helper()
+	result := make(map[string]*TileMove)
+	for _, move := range state.GenerateMoves() {
+		if tm, ok := move.(*TileMove); ok {
+			key := coversKey(tm.Covers)
+			if _, found := result[key]; found {
+				t.Errorf("Move %v generated more than once", tm)
+			}
+			result[key] = tm
+		}
+	}
+	return result
+}
+
+// TestSingleTileMoveNotDuplicated checks that a single tile forming words
+// in both directions is generated once, not once per axis
+func TestSingleTileMoveNotDuplicated(t *testing.T) {
+	board, err := NewBoard("standard")
+	if err != nil {
+		t.Fatalf("Unable to create a new Board: %v", err)
+	}
+	// An 'r' at (7,7) forms "ár" both horizontally and vertically
+	board.PlaceTile(7, 6, &Tile{'á', 'á', 4, 0})
+	board.PlaceTile(6, 7, &Tile{'á', 'á', 4, 0})
+	rack := NewRack([]rune("rkstuna"), NewIcelandicTileSet)
+	state := NewState(IcelandicDictionary, NewIcelandicTileSet, board, rack, false)
+	moves := tileMovesByKey(t, state)
+	if _, found := moves[coversKey(Covers{{7, 7}: Cover{'r', 'r'}})]; !found {
+		t.Errorf("The single-tile move 'r' at (7,7) was not generated")
+	}
+}
+
+// TestBlankPlacements checks that every distinct placement of a blank
+// is generated, not only the first one
+func TestBlankPlacements(t *testing.T) {
+	board, err := NewBoard("standard")
+	if err != nil {
+		t.Fatalf("Unable to create a new Board: %v", err)
+	}
+	// One real 'a' and a blank: "amma" can be played with the
+	// blank on either 'a', in each position through the start square
+	rack := NewRack([]rune("amm?"), NewIcelandicTileSet)
+	state := NewState(IcelandicDictionary, NewIcelandicTileSet, board, rack, false)
+	moves := tileMovesByKey(t, state)
+	for startCol := 4; startCol <= 7; startCol++ {
+		for _, blankCol := range []int{startCol, startCol + 3} {
+			covers := Covers{}
+			for i, meaning := range "amma" {
+				letter := meaning
+				if startCol+i == blankCol {
+					letter = '?'
+				}
+				covers[Coordinate{7, startCol + i}] = Cover{letter, meaning}
+			}
+			if _, found := moves[coversKey(covers)]; !found {
+				t.Errorf("Move %v was not generated",
+					NewUncheckedTileMove(board, covers))
+			}
+		}
+	}
+}
+
+// TestGeneratedMovesComplete plays a few games and checks, in each position,
+// that no move is generated twice and that swapping a blank with a real tile
+// of the same letter within a move yields a move that is also generated.
+// A blank is put on each rack to exercise the blank placements.
+func TestGeneratedMovesComplete(t *testing.T) {
+	for g := 0; g < 3; g++ {
+		game, err := NewIcelandicGame("standard")
+		if err != nil {
+			t.Fatalf("Unable to create a new Icelandic game: %v", err)
+		}
+		robot := NewHighScoreRobot()
+		for !game.IsOver() {
+			letters := []rune(game.State().Rack.AsString())
+			if len(letters) >= 2 && !ContainsRune(letters, '?') {
+				letters[len(letters)-1] = '?'
+				rack := NewRack(letters, game.TileSet)
+				state := NewState(game.Dawg, game.TileSet, &game.Board, rack, true)
+				moves := tileMovesByKey(t, state)
+				for _, tm := range moves {
+					for blankCoord, blank := range tm.Covers {
+						if blank.Letter != '?' {
+							continue
+						}
+						for realCoord, real := range tm.Covers {
+							if real.Letter != blank.Meaning {
+								continue
+							}
+							swapped := make(Covers, len(tm.Covers))
+							for coord, cover := range tm.Covers {
+								swapped[coord] = cover
+							}
+							swapped[blankCoord] = Cover{blank.Meaning, blank.Meaning}
+							swapped[realCoord] = Cover{'?', real.Meaning}
+							if _, found := moves[coversKey(swapped)]; !found {
+								t.Errorf("Move %v generated but not %v", tm,
+									NewUncheckedTileMove(&game.Board, swapped))
+							}
+						}
+					}
+				}
+			}
+			game.ApplyValid(robot.GenerateMove(game.State()))
 		}
 	}
 }
