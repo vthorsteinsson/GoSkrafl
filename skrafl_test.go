@@ -623,6 +623,23 @@ func TestAxis(t *testing.T) {
 	if board.NumTiles != 2 {
 		t.Errorf("Board should have 2 tiles")
 	}
+	// Placing on an occupied square, off the board or a nil tile
+	// must fail and leave the board unchanged
+	if board.PlaceTile(3, 3, &Tile{'a', 'a', 1, 0}) {
+		t.Errorf("PlaceTile accepted an already occupied square")
+	}
+	if board.TileAt(3, 3).Letter != 'd' {
+		t.Errorf("PlaceTile overwrote the tile in an occupied square")
+	}
+	if board.PlaceTile(BoardSize, 0, &Tile{'a', 'a', 1, 0}) {
+		t.Errorf("PlaceTile accepted a square off the board")
+	}
+	if board.PlaceTile(5, 5, nil) {
+		t.Errorf("PlaceTile accepted a nil tile")
+	}
+	if board.NumTiles != 2 {
+		t.Errorf("Board should still have 2 tiles after failed placements")
+	}
 	if !board.HasStartTile() {
 		t.Errorf("Board should have start tile")
 	}

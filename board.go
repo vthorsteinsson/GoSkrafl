@@ -229,10 +229,12 @@ func (board *Board) TileAt(row, col int) *Tile {
 	return board.Squares[row][col].Tile
 }
 
-// Place a tile in a board square, if it is empty
+// Place a tile in a board square, if it is empty. Returns false,
+// leaving the board unchanged, if the square does not exist,
+// is already occupied, or the tile is nil.
 func (board *Board) PlaceTile(row, col int, tile *Tile) bool {
 	sq := board.Sq(row, col)
-	if sq == nil {
+	if sq == nil || sq.Tile != nil || tile == nil {
 		return false
 	}
 	sq.Tile = tile
