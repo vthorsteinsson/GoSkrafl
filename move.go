@@ -342,7 +342,7 @@ func (move *TileMove) IsValid(game *Game) bool {
 	}
 	// Check the cross words
 	for coord, cover := range move.Covers {
-		left, right := game.Board.CrossWords(coord.Col, coord.Row, !move.Horizontal)
+		left, right := game.Board.CrossWords(coord.Row, coord.Col, !move.Horizontal)
 		if len(left) > 0 || len(right) > 0 {
 			// There is a cross word here: check it
 			prefix := make([]rune, 0, len(left)+len(right)+1)

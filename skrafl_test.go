@@ -453,6 +453,53 @@ func TestTileMove(t *testing.T) {
 	}
 }
 
+// TestTileMoveCrossWords checks that TileMove.IsValid() validates the
+// cross words formed at the covered squares themselves, not at the squares
+// mirrored across the main diagonal (row and column swapped).
+func TestTileMoveCrossWords(t *testing.T) {
+	newBoard := func(tiles map[Coordinate]rune) *Game {
+		game, err := NewIcelandicGame("standard")
+		if err != nil {
+			t.Fatalf("Unable to create a new Icelandic game: %v", err)
+		}
+		for coord, letter := range tiles {
+			game.Board.PlaceTile(coord.Row, coord.Col,
+				&Tile{Letter: letter, Meaning: letter, Score: 1})
+		}
+		return game
+	}
+	// "akur" on row 6, cols 8-11, above a 'þ' at (7,8):
+	// the vertical cross word "aþ" is invalid
+	game := newBoard(map[Coordinate]rune{{7, 8}: 'þ'})
+	move := NewTileMove(&game.Board, Covers{
+		{6, 8}:  Cover{'a', 'a'},
+		{6, 9}:  Cover{'k', 'k'},
+		{6, 10}: Cover{'u', 'u'},
+		{6, 11}: Cover{'r', 'r'},
+	})
+	if !game.Dawg.Find("akur") || game.Dawg.Find("aþ") {
+		t.Fatalf("Test premise broken: expected 'akur' valid and 'aþ' invalid")
+	}
+	if move.IsValid(game) {
+		t.Errorf("Accepted a move forming the invalid cross word 'aþ'")
+	}
+	// "ás" on row 6, cols 8-9, above an 'r' at (7,8): the cross word "ár"
+	// is valid. A 'þ' at (9,6), below the mirrored square (8,6), would form the
+	// invalid "áþ" there, but must not matter.
+	game = newBoard(map[Coordinate]rune{{7, 8}: 'r', {9, 6}: 'þ'})
+	move = NewTileMove(&game.Board, Covers{
+		{6, 8}: Cover{'á', 'á'},
+		{6, 9}: Cover{'s', 's'},
+	})
+	if !game.Dawg.Find("ás") || !game.Dawg.Find("ár") ||
+		game.Dawg.Find("áþ") {
+		t.Fatalf("Test premise broken: expected 'ás' and 'ár' valid, 'áþ' invalid")
+	}
+	if !move.IsValid(game) {
+		t.Errorf("Rejected a valid move because of a tile next to the mirrored square")
+	}
+}
+
 func TestStartSquare(t *testing.T) {
 	game, err := NewIcelandicGame("explo")
 	if err != nil {
