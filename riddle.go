@@ -117,7 +117,25 @@ type Stats struct {
 	TiedBestMoves    int // Multiple moves tie for the best score (ambiguous solution)
 }
 
+// add adds the counts in other to stats.
+func (stats *Stats) add(other *Stats) {
+	stats.Candidates += other.Candidates
+	stats.Attempts += other.Attempts
+	stats.NoValidMove += other.NoValidMove
+	stats.GameEnded += other.GameEnded
+	stats.ContextCancelled += other.ContextCancelled
+	stats.TooFewMoves += other.TooFewMoves
+	stats.TooManyMoves += other.TooManyMoves
+	stats.TooLowBestScore += other.TooLowBestScore
+	stats.TooShortWord += other.TooShortWord
+	stats.WordNotCommon += other.WordNotCommon
+	stats.DoubleTripleWord += other.DoubleTripleWord
+	stats.TiedBestMoves += other.TiedBestMoves
+}
+
 // generateCandidate creates a single riddle candidate.
+// The stats are owned by the calling worker and must not be shared
+// with other goroutines.
 func generateCandidate(
 	ctx context.Context,
 	params GenerationParams,
@@ -125,7 +143,7 @@ func generateCandidate(
 	stats *Stats,
 ) (*RiddleCandidate, error) {
 	// Increment attempt counter for every call
-	atomic.AddInt64(&stats.Attempts, 1)
+	stats.Attempts++
 
 	// Create a new game with two high-score robots.
 	p1 := NewHighScoreRobot()
@@ -293,16 +311,17 @@ func GenerateRiddle(params GenerationParams, heuristics HeuristicConfig) (*Riddl
 	var wg sync.WaitGroup
 	candidateChan := make(chan *RiddleCandidate, 100)
 
-	stats := &Stats{}
-
-	// Spawn a configurable number of workers.
+	// Spawn a configurable number of workers. Each worker collects
+	// its own statistics, which are merged once all workers are done.
 	numWorkers := params.NumWorkers
+	workerStats := make([]Stats, numWorkers)
+	var numProduced atomic.Int64 // Candidates produced by all workers
 	wg.Add(numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-		go func() {
+		go func(stats *Stats) {
 			defer wg.Done()
-			for atomic.LoadInt64(&stats.Candidates) < int64(params.NumCandidates) {
+			for numProduced.Load() < int64(params.NumCandidates) {
 				select {
 				case <-ctx.Done():
 					return
@@ -310,11 +329,12 @@ func GenerateRiddle(params GenerationParams, heuristics HeuristicConfig) (*Riddl
 					candidate, err := generateCandidate(ctx, params, heuristics, stats)
 					if err == nil && candidate != nil {
 						candidateChan <- candidate
-						atomic.AddInt64(&stats.Candidates, 1)
+						numProduced.Add(1)
+						stats.Candidates++
 					}
 				}
 			}
-		}()
+		}(&workerStats[i])
 	}
 
 	// This goroutine will wait for all workers to finish and then close the channel.
@@ -330,9 +350,16 @@ func GenerateRiddle(params GenerationParams, heuristics HeuristicConfig) (*Riddl
 	}
 	numCandidates := len(bestCandidates)
 
-	// Log the rejection stats
+	// The channel is closed only after all workers are done,
+	// so their statistics can now be merged safely
+	stats := &Stats{}
+	for i := range workerStats {
+		stats.add(&workerStats[i])
+	}
+
+	// Return the rejection stats also on failure, for diagnostics
 	if numCandidates == 0 {
-		return nil, nil, fmt.Errorf("could not generate a suitable riddle in the allotted time")
+		return nil, stats, fmt.Errorf("could not generate a suitable riddle in the allotted time")
 	}
 
 	// Sort by our final rank score

@@ -893,6 +893,43 @@ func TestGenerateRiddle(t *testing.T) {
 	}
 }
 
+// TestGenerateRiddleTimeout runs riddle generation with a time limit too short
+// to produce candidates, so that all workers hit the cancellation path at about
+// the same time. Run with -race to check that the workers' statistics are
+// collected without data races.
+func TestGenerateRiddleTimeout(t *testing.T) {
+	dawg, tileSet, err := decodeLocale("is_IS", "standard")
+	if err != nil {
+		t.Fatalf("Failed to decode locale: %v", err)
+	}
+	params := GenerationParams{
+		Locale:        "is_IS",
+		BoardType:     "standard",
+		Dawg:          dawg,
+		TileSet:       tileSet,
+		TimeLimit:     300 * time.Millisecond,
+		NumWorkers:    8,
+		NumCandidates: 1000,
+	}
+	riddle, stats, err := GenerateRiddle(params, DefaultHeuristics)
+	if stats == nil {
+		t.Fatalf("GenerateRiddle returned nil stats (err: %v)", err)
+	}
+	if err == nil && riddle == nil {
+		t.Fatal("GenerateRiddle returned nil riddle and nil error")
+	}
+	// Every attempt ends in exactly one outcome: a candidate,
+	// a rejection or a cancellation
+	outcomes := stats.Candidates + int64(stats.NoValidMove+stats.GameEnded+
+		stats.ContextCancelled+stats.TooFewMoves+stats.TooManyMoves+
+		stats.TooLowBestScore+stats.TooShortWord+stats.WordNotCommon+
+		stats.DoubleTripleWord+stats.TiedBestMoves)
+	if stats.Attempts == 0 || outcomes != stats.Attempts {
+		t.Errorf("Inconsistent stats, %d attempts but %d outcomes: %+v",
+			stats.Attempts, outcomes, *stats)
+	}
+}
+
 func TestCoord(t *testing.T) {
 	// Test horizontal coordinates: Row Letter + Column Number
 	// Row 0 ('A'), Col 0 ('1') -> "A1"
