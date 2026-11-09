@@ -25,6 +25,9 @@ type MovesRequest struct {
 	Board     []string `json:"board"`
 	Rack      string   `json:"rack"`
 	Limit     int      `json:"limit"`
+	// The tile set of the game, by name (see tileSetByName). Optional:
+	// if empty, the default tile set for the locale and board type is used.
+	TileSet string `json:"tile_set"`
 }
 
 // A class describing incoming /riddle requests
@@ -141,6 +144,21 @@ func HandleMovesRequest(w http.ResponseWriter, req MovesRequest) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Invalid locale '%s'", locale), http.StatusBadRequest)
 		return
+	}
+	if req.TileSet != "" {
+		// The client names the game's tile set explicitly: it must exist
+		// and belong to the language of the locale's dictionary
+		named, ok := tileSetByName(req.TileSet)
+		if !ok {
+			http.Error(w, fmt.Sprintf("Unknown tile set '%s'", req.TileSet), http.StatusBadRequest)
+			return
+		}
+		if !named.allows(dawg) {
+			msg := fmt.Sprintf("Tile set '%s' cannot be used with locale '%s'", req.TileSet, locale)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		tileSet = named.tileSet
 	}
 
 	rackRunes := []rune(req.Rack)

@@ -57,6 +57,13 @@ GoSkrafl is a concurrent crossword game engine and auto-playing robot written in
 - JSON API endpoints: `/moves` and `/wordcheck`
 - Handles move generation requests and word validation
 - CORS support for web clients
+- `/moves` takes an optional `tile_set` (by name, see `tileSetByName` in
+  `bag.go`: `icelandic_old`, `icelandic_new`, `english_classic`,
+  `english_new`, `polish`, `norwegian_original`, `norwegian_new`). The
+  tile set and the board type are independent, as in the Netskrafl backend,
+  which sends the game's tile set; without it, the default for the locale
+  and board type is used (older Explo clients call `/moves` directly).
+  Keep the tile sets identical to the Netskrafl backend's (`src/languages.py`).
 
 ### Key Data Structures
 - `Move`: Represents a game move (tile placement, pass, exchange)
