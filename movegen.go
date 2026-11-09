@@ -264,30 +264,123 @@ func (ern *ExtendRightNavigator) Accept(matched []rune, final bool, state *navSt
 		// Less than 2 letters long: not a legal tile move
 		return
 	}
-	// Legal move found: make a TileMove object for it and add to
-	// the move list
-	covers := make(Covers)
+	// Legal move found: collect the tiles that it lays down
+	var placement blankPlacement
 	// Calculate the starting index within the axis
 	start := ern.index - len(matched)
-	// The original rack
-	rack := MakeRackTiles(ern.axis.rack)
 	for i, meaning := range matched {
 		sq := ern.axis.sq[start+i]
 		if sq.Tile == nil {
-			letter := meaning
-			if rack.ContainsTile(meaning) {
-				rack.RemoveTile(meaning)
-			} else {
-				// Must be using a blank tile
-				letter = '?'
-				rack.RemoveTile('?')
-			}
-			covers[Coordinate{sq.Row, sq.Col}] = Cover{letter, meaning}
+			placement.tiles[placement.n] = newTile{Coordinate{sq.Row, sq.Col}, meaning}
+			placement.n++
 		}
 	}
-	// No need to validate robot-generated tile moves
-	tileMove := NewUncheckedTileMove(ern.axis.state.Board, covers)
-	ern.moves = append(ern.moves, tileMove)
+	if placement.n == 1 && !ern.axis.horizontal {
+		// A single tile that also touches tiles to its left or right
+		// forms words in both directions, so the horizontal axis finds
+		// the very same move: leave it to that axis to avoid a duplicate
+		coord := placement.tiles[0].coord
+		board := ern.axis.state.Board
+		if board.TileAt(coord.Row, coord.Col-1) != nil ||
+			board.TileAt(coord.Row, coord.Col+1) != nil {
+			return
+		}
+	}
+	// Generate a move for every distinct placement of blank tiles
+	placement.init(ern.axis.rack)
+	placement.emit(ern, 0)
+}
+
+// newTile is a tile that a generated move lays down on the board
+type newTile struct {
+	coord   Coordinate
+	meaning rune
+}
+
+// blankPlacement enumerates the distinct ways of covering the squares
+// of a generated move with tiles from the rack. When the rack has fewer
+// real tiles of a letter than the move needs, blanks make up the
+// difference, and each choice of which squares get the blanks is a
+// distinct move, generally with a distinct score. A blank is not used
+// for a letter while a real tile of that letter is left over.
+type blankPlacement struct {
+	tiles [RackSize]newTile
+	n     int
+	// group[i] is the index of the first tile having the same
+	// meaning as tile i
+	group [RackSize]int
+	// later[i] is the number of tiles after tile i having its meaning
+	later [RackSize]int
+	// blanks[g] is the number of blanks still to be placed
+	// within the group g
+	blanks  [RackSize]int
+	isBlank [RackSize]bool
+}
+
+// init groups the tiles by meaning and calculates the number
+// of blanks that each group needs, given the original rack
+func (bp *blankPlacement) init(rack []rune) {
+	for i := 0; i < bp.n; i++ {
+		meaning := bp.tiles[i].meaning
+		bp.group[i] = i
+		for j := 0; j < i; j++ {
+			if bp.tiles[j].meaning == meaning {
+				bp.group[i] = bp.group[j]
+				break
+			}
+		}
+		for j := i + 1; j < bp.n; j++ {
+			if bp.tiles[j].meaning == meaning {
+				bp.later[i]++
+			}
+		}
+		if bp.group[i] == i {
+			// First tile of its group: count the real tiles
+			// of this letter in the rack
+			real := 0
+			for _, r := range rack {
+				if r == meaning {
+					real++
+				}
+			}
+			bp.blanks[i] = max(0, bp.later[i]+1-real)
+		}
+	}
+}
+
+// emit decides whether tile i and the tiles after it are real
+// tiles or blanks, adding a move to the navigator's list for
+// each complete placement
+func (bp *blankPlacement) emit(ern *ExtendRightNavigator, i int) {
+	if i == bp.n {
+		covers := make(Covers, bp.n)
+		for j := 0; j < bp.n; j++ {
+			tile := &bp.tiles[j]
+			letter := tile.meaning
+			if bp.isBlank[j] {
+				letter = '?'
+			}
+			covers[tile.coord] = Cover{letter, tile.meaning}
+		}
+		// No need to validate robot-generated tile moves
+		tileMove := NewUncheckedTileMove(ern.axis.state.Board, covers)
+		ern.moves = append(ern.moves, tileMove)
+		return
+	}
+	g := bp.group[i]
+	if bp.blanks[g] > 0 {
+		// Place a blank on this square
+		bp.blanks[g]--
+		bp.isBlank[i] = true
+		bp.emit(ern, i+1)
+		bp.isBlank[i] = false
+		bp.blanks[g]++
+	}
+	if bp.later[i] >= bp.blanks[g] {
+		// Place a real tile on this square, as there are enough
+		// later squares in the group for its remaining blanks
+		bp.emit(ern, i+1)
+	}
 }
 
 // Axis stores information about a row or column on the board where

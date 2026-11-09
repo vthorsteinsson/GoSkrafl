@@ -83,9 +83,14 @@ func (list byScore) Less(i, j int) bool {
 // or an exchange move, or a pass move as a last resort
 func (robot *HighScoreRobot) PickMove(state *GameState, moves []Move) Move {
 	if len(moves) > 0 {
-		// Sort by score and return the highest scoring move
-		sort.Sort(byScore{state, moves})
-		return moves[0]
+		// Return the highest scoring move, without sorting the list
+		best, bestScore := moves[0], moves[0].Score(state)
+		for _, move := range moves[1:] {
+			if score := move.Score(state); score > bestScore {
+				best, bestScore = move, score
+			}
+		}
+		return best
 	}
 	// No valid tile moves
 	if !state.exchangeForbidden {

@@ -24,6 +24,7 @@ package skrafl
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -453,6 +454,53 @@ func TestTileMove(t *testing.T) {
 	}
 }
 
+// TestTileMoveCrossWords checks that TileMove.IsValid() validates the
+// cross words formed at the covered squares themselves, not at the squares
+// mirrored across the main diagonal (row and column swapped).
+func TestTileMoveCrossWords(t *testing.T) {
+	newBoard := func(tiles map[Coordinate]rune) *Game {
+		game, err := NewIcelandicGame("standard")
+		if err != nil {
+			t.Fatalf("Unable to create a new Icelandic game: %v", err)
+		}
+		for coord, letter := range tiles {
+			game.Board.PlaceTile(coord.Row, coord.Col,
+				&Tile{Letter: letter, Meaning: letter, Score: 1})
+		}
+		return game
+	}
+	// "akur" on row 6, cols 8-11, above a 'þ' at (7,8):
+	// the vertical cross word "aþ" is invalid
+	game := newBoard(map[Coordinate]rune{{7, 8}: 'þ'})
+	move := NewTileMove(&game.Board, Covers{
+		{6, 8}:  Cover{'a', 'a'},
+		{6, 9}:  Cover{'k', 'k'},
+		{6, 10}: Cover{'u', 'u'},
+		{6, 11}: Cover{'r', 'r'},
+	})
+	if !game.Dawg.Find("akur") || game.Dawg.Find("aþ") {
+		t.Fatalf("Test premise broken: expected 'akur' valid and 'aþ' invalid")
+	}
+	if move.IsValid(game) {
+		t.Errorf("Accepted a move forming the invalid cross word 'aþ'")
+	}
+	// "ás" on row 6, cols 8-9, above an 'r' at (7,8): the cross word "ár"
+	// is valid. A 'þ' at (9,6), below the mirrored square (8,6), would form the
+	// invalid "áþ" there, but must not matter.
+	game = newBoard(map[Coordinate]rune{{7, 8}: 'r', {9, 6}: 'þ'})
+	move = NewTileMove(&game.Board, Covers{
+		{6, 8}: Cover{'á', 'á'},
+		{6, 9}: Cover{'s', 's'},
+	})
+	if !game.Dawg.Find("ás") || !game.Dawg.Find("ár") ||
+		game.Dawg.Find("áþ") {
+		t.Fatalf("Test premise broken: expected 'ás' and 'ár' valid, 'áþ' invalid")
+	}
+	if !move.IsValid(game) {
+		t.Errorf("Rejected a valid move because of a tile next to the mirrored square")
+	}
+}
+
 func TestStartSquare(t *testing.T) {
 	game, err := NewIcelandicGame("explo")
 	if err != nil {
@@ -576,6 +624,23 @@ func TestAxis(t *testing.T) {
 	if board.NumTiles != 2 {
 		t.Errorf("Board should have 2 tiles")
 	}
+	// Placing on an occupied square, off the board or a nil tile
+	// must fail and leave the board unchanged
+	if board.PlaceTile(3, 3, &Tile{'a', 'a', 1, 0}) {
+		t.Errorf("PlaceTile accepted an already occupied square")
+	}
+	if board.TileAt(3, 3).Letter != 'd' {
+		t.Errorf("PlaceTile overwrote the tile in an occupied square")
+	}
+	if board.PlaceTile(BoardSize, 0, &Tile{'a', 'a', 1, 0}) {
+		t.Errorf("PlaceTile accepted a square off the board")
+	}
+	if board.PlaceTile(5, 5, nil) {
+		t.Errorf("PlaceTile accepted a nil tile")
+	}
+	if board.NumTiles != 2 {
+		t.Errorf("Board should still have 2 tiles after failed placements")
+	}
 	if !board.HasStartTile() {
 		t.Errorf("Board should have start tile")
 	}
@@ -606,6 +671,128 @@ func TestAxis(t *testing.T) {
 					wordMove.CleanWord(),
 				)
 			}
+		}
+	}
+}
+
+// coversKey returns a string that identifies a tile move by its covers
+func coversKey(covers Covers) string {
+	parts := make([]string, 0, len(covers))
+	for coord, cover := range covers {
+		parts = append(parts, fmt.Sprintf("%d,%d=%c%c",
+			coord.Row, coord.Col, cover.Letter, cover.Meaning))
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, ";")
+}
+
+// tileMovesByKey returns the generated tile moves, keyed by their covers,
+// reporting an error for each move that is generated more than once
+func tileMovesByKey(t *testing.T, state *GameState) map[string]*TileMove {
+	t.Helper()
+	result := make(map[string]*TileMove)
+	for _, move := range state.GenerateMoves() {
+		if tm, ok := move.(*TileMove); ok {
+			key := coversKey(tm.Covers)
+			if _, found := result[key]; found {
+				t.Errorf("Move %v generated more than once", tm)
+			}
+			result[key] = tm
+		}
+	}
+	return result
+}
+
+// TestSingleTileMoveNotDuplicated checks that a single tile forming words
+// in both directions is generated once, not once per axis
+func TestSingleTileMoveNotDuplicated(t *testing.T) {
+	board, err := NewBoard("standard")
+	if err != nil {
+		t.Fatalf("Unable to create a new Board: %v", err)
+	}
+	// An 'r' at (7,7) forms "ár" both horizontally and vertically
+	board.PlaceTile(7, 6, &Tile{'á', 'á', 4, 0})
+	board.PlaceTile(6, 7, &Tile{'á', 'á', 4, 0})
+	rack := NewRack([]rune("rkstuna"), NewIcelandicTileSet)
+	state := NewState(IcelandicDictionary, NewIcelandicTileSet, board, rack, false)
+	moves := tileMovesByKey(t, state)
+	if _, found := moves[coversKey(Covers{{7, 7}: Cover{'r', 'r'}})]; !found {
+		t.Errorf("The single-tile move 'r' at (7,7) was not generated")
+	}
+}
+
+// TestBlankPlacements checks that every distinct placement of a blank
+// is generated, not only the first one
+func TestBlankPlacements(t *testing.T) {
+	board, err := NewBoard("standard")
+	if err != nil {
+		t.Fatalf("Unable to create a new Board: %v", err)
+	}
+	// One real 'a' and a blank: "amma" can be played with the
+	// blank on either 'a', in each position through the start square
+	rack := NewRack([]rune("amm?"), NewIcelandicTileSet)
+	state := NewState(IcelandicDictionary, NewIcelandicTileSet, board, rack, false)
+	moves := tileMovesByKey(t, state)
+	for startCol := 4; startCol <= 7; startCol++ {
+		for _, blankCol := range []int{startCol, startCol + 3} {
+			covers := Covers{}
+			for i, meaning := range "amma" {
+				letter := meaning
+				if startCol+i == blankCol {
+					letter = '?'
+				}
+				covers[Coordinate{7, startCol + i}] = Cover{letter, meaning}
+			}
+			if _, found := moves[coversKey(covers)]; !found {
+				t.Errorf("Move %v was not generated",
+					NewUncheckedTileMove(board, covers))
+			}
+		}
+	}
+}
+
+// TestGeneratedMovesComplete plays a few games and checks, in each position,
+// that no move is generated twice and that swapping a blank with a real tile
+// of the same letter within a move yields a move that is also generated.
+// A blank is put on each rack to exercise the blank placements.
+func TestGeneratedMovesComplete(t *testing.T) {
+	for g := 0; g < 3; g++ {
+		game, err := NewIcelandicGame("standard")
+		if err != nil {
+			t.Fatalf("Unable to create a new Icelandic game: %v", err)
+		}
+		robot := NewHighScoreRobot()
+		for !game.IsOver() {
+			letters := []rune(game.State().Rack.AsString())
+			if len(letters) >= 2 && !ContainsRune(letters, '?') {
+				letters[len(letters)-1] = '?'
+				rack := NewRack(letters, game.TileSet)
+				state := NewState(game.Dawg, game.TileSet, &game.Board, rack, true)
+				moves := tileMovesByKey(t, state)
+				for _, tm := range moves {
+					for blankCoord, blank := range tm.Covers {
+						if blank.Letter != '?' {
+							continue
+						}
+						for realCoord, real := range tm.Covers {
+							if real.Letter != blank.Meaning {
+								continue
+							}
+							swapped := make(Covers, len(tm.Covers))
+							for coord, cover := range tm.Covers {
+								swapped[coord] = cover
+							}
+							swapped[blankCoord] = Cover{blank.Meaning, blank.Meaning}
+							swapped[realCoord] = Cover{'?', real.Meaning}
+							if _, found := moves[coversKey(swapped)]; !found {
+								t.Errorf("Move %v generated but not %v", tm,
+									NewUncheckedTileMove(&game.Board, swapped))
+							}
+						}
+					}
+				}
+			}
+			game.ApplyValid(robot.GenerateMove(game.State()))
 		}
 	}
 }
@@ -826,6 +1013,43 @@ func TestGenerateRiddle(t *testing.T) {
 	// Verify that the Description starts with the Coord (plus a space)
 	if !strings.HasPrefix(riddle.Solution.Description, riddle.Solution.Coord+" ") {
 		t.Errorf("Description '%s' does not start with Coord '%s'", riddle.Solution.Description, riddle.Solution.Coord)
+	}
+}
+
+// TestGenerateRiddleTimeout runs riddle generation with a time limit too short
+// to produce candidates, so that all workers hit the cancellation path at about
+// the same time. Run with -race to check that the workers' statistics are
+// collected without data races.
+func TestGenerateRiddleTimeout(t *testing.T) {
+	dawg, tileSet, err := decodeLocale("is_IS", "standard")
+	if err != nil {
+		t.Fatalf("Failed to decode locale: %v", err)
+	}
+	params := GenerationParams{
+		Locale:        "is_IS",
+		BoardType:     "standard",
+		Dawg:          dawg,
+		TileSet:       tileSet,
+		TimeLimit:     300 * time.Millisecond,
+		NumWorkers:    8,
+		NumCandidates: 1000,
+	}
+	riddle, stats, err := GenerateRiddle(params, DefaultHeuristics)
+	if stats == nil {
+		t.Fatalf("GenerateRiddle returned nil stats (err: %v)", err)
+	}
+	if err == nil && riddle == nil {
+		t.Fatal("GenerateRiddle returned nil riddle and nil error")
+	}
+	// Every attempt ends in exactly one outcome: a candidate,
+	// a rejection or a cancellation
+	outcomes := stats.Candidates + int64(stats.NoValidMove+stats.GameEnded+
+		stats.ContextCancelled+stats.TooFewMoves+stats.TooManyMoves+
+		stats.TooLowBestScore+stats.TooShortWord+stats.WordNotCommon+
+		stats.DoubleTripleWord+stats.TiedBestMoves)
+	if stats.Attempts == 0 || outcomes != stats.Attempts {
+		t.Errorf("Inconsistent stats, %d attempts but %d outcomes: %+v",
+			stats.Attempts, outcomes, *stats)
 	}
 }
 
