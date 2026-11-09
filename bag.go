@@ -111,6 +111,38 @@ func initNewIcelandicTileSet() *TileSet {
 // NewIcelandicTileSet is the new standard Icelandic tile set
 var NewIcelandicTileSet = initNewIcelandicTileSet()
 
+// initOldIcelandicTileSet creates the old (original) Icelandic
+// tile set of 104 tiles, still used by older Netskrafl games
+func initOldIcelandicTileSet() *TileSet {
+
+	// The scores of each letter
+	scores := map[rune]int{
+		'a': 1, 'á': 4, 'b': 6, 'd': 4, 'ð': 2,
+		'e': 1, 'é': 6, 'f': 3, 'g': 2, 'h': 3,
+		'i': 1, 'í': 4, 'j': 5, 'k': 2, 'l': 2,
+		'm': 2, 'n': 1, 'o': 3, 'ó': 6, 'p': 8,
+		'r': 1, 's': 1, 't': 1, 'u': 1, 'ú': 8,
+		'v': 3, 'x': 10, 'y': 7, 'ý': 9, 'þ': 4,
+		'æ': 5, 'ö': 7, '?': 0,
+	}
+
+	// The number of tiles for each letter
+	tiles := map[rune]int{
+		'a': 10, 'á': 2, 'b': 1, 'd': 2, 'ð': 5,
+		'e': 6, 'é': 1, 'f': 3, 'g': 4, 'h': 2,
+		'i': 8, 'í': 2, 'j': 1, 'k': 3, 'l': 3,
+		'm': 3, 'n': 8, 'o': 3, 'ó': 1, 'p': 1,
+		'r': 7, 's': 6, 't': 5, 'u': 6, 'ú': 1,
+		'v': 2, 'x': 1, 'y': 1, 'ý': 1, 'þ': 1,
+		'æ': 1, 'ö': 1, '?': 2,
+	}
+
+	return initTileSet(scores, tiles)
+}
+
+// OldIcelandicTileSet is the old (original) Icelandic tile set
+var OldIcelandicTileSet = initOldIcelandicTileSet()
+
 // initPolishTileSet creates the Polish tile set
 func initPolishTileSet() *TileSet {
 
@@ -169,6 +201,33 @@ func initNorwegianTileSet() *TileSet {
 // NorwegianTileSet is the new Norwegian tile set
 var NorwegianTileSet = initNorwegianTileSet()
 
+// initOriginalNorwegianTileSet creates the original Norwegian tile set
+func initOriginalNorwegianTileSet() *TileSet {
+
+	scores := map[rune]int{
+		'a': 1, 'b': 4, 'c': 10, 'd': 1, 'e': 1,
+		'f': 2, 'g': 2, 'h': 3, 'i': 1, 'j': 4,
+		'k': 2, 'l': 1, 'm': 2, 'n': 1, 'o': 2,
+		'p': 4, 'r': 1, 's': 1, 't': 1, 'u': 4,
+		'v': 4, 'w': 8, 'y': 6, 'æ': 6, 'ø': 5,
+		'å': 4, '?': 0,
+	}
+
+	tiles := map[rune]int{
+		'a': 7, 'b': 3, 'c': 1, 'd': 5, 'e': 9,
+		'f': 4, 'g': 4, 'h': 3, 'i': 5, 'j': 2,
+		'k': 4, 'l': 5, 'm': 3, 'n': 6, 'o': 4,
+		'p': 2, 'r': 6, 's': 6, 't': 6, 'u': 3,
+		'v': 3, 'w': 1, 'y': 1, 'æ': 1, 'ø': 2,
+		'å': 2, '?': 2,
+	}
+
+	return initTileSet(scores, tiles)
+}
+
+// OriginalNorwegianTileSet is the original Norwegian tile set
+var OriginalNorwegianTileSet = initOriginalNorwegianTileSet()
+
 // initEnglishTileSet creates the standard English tile set
 func initEnglishTileSet() *TileSet {
 
@@ -189,7 +248,7 @@ func initEnglishTileSet() *TileSet {
 		'k': 1, 'l': 4, 'm': 2, 'n': 6, 'o': 8,
 		'p': 2, 'q': 1, 'r': 6, 's': 4, 't': 6,
 		'u': 4, 'v': 2, 'w': 2, 'x': 1, 'y': 2,
-		'z': 1,
+		'z': 1, '?': 2,
 	}
 
 	return initTileSet(scores, tiles)
@@ -226,6 +285,50 @@ func initNewEnglishTileSet() *TileSet {
 
 // NewEnglishTileSet is the Explo English tile set
 var NewEnglishTileSet = initNewEnglishTileSet()
+
+// namedTileSet is a tile set that a client can select by name,
+// together with the dictionaries (languages) that it can be used with
+type namedTileSet struct {
+	tileSet      *TileSet
+	dictionaries []*Dawg
+}
+
+// tileSetByName returns the tile set with the given name, which clients
+// use to select the tile set of a game explicitly, independently of the
+// board type. The names match the tile set keys of the Netskrafl
+// backend. The second return value is false if the name is unknown.
+func tileSetByName(name string) (namedTileSet, bool) {
+	icelandic := []*Dawg{IcelandicDictionary}
+	english := []*Dawg{OtcwlDictionary, SowpodsDictionary}
+	norwegian := []*Dawg{NorwegianBokmålDictionary, NorwegianNynorskDictionary}
+	switch name {
+	case "icelandic_old":
+		return namedTileSet{OldIcelandicTileSet, icelandic}, true
+	case "icelandic_new":
+		return namedTileSet{NewIcelandicTileSet, icelandic}, true
+	case "english_classic":
+		return namedTileSet{EnglishTileSet, english}, true
+	case "english_new":
+		return namedTileSet{NewEnglishTileSet, english}, true
+	case "polish":
+		return namedTileSet{PolishTileSet, []*Dawg{OspsDictionary}}, true
+	case "norwegian_original":
+		return namedTileSet{OriginalNorwegianTileSet, norwegian}, true
+	case "norwegian_new":
+		return namedTileSet{NorwegianTileSet, norwegian}, true
+	}
+	return namedTileSet{}, false
+}
+
+// allows returns true if the tile set can be used with the dictionary
+func (nts namedTileSet) allows(dawg *Dawg) bool {
+	for _, d := range nts.dictionaries {
+		if d == dawg {
+			return true
+		}
+	}
+	return false
+}
 
 // Initialize a bag from a tile set and return a reference to it
 func makeBag(tileSet *TileSet) *Bag {
